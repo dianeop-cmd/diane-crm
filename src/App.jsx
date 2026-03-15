@@ -1,4 +1,48 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+// ═══ GOOGLE SHEETS CONFIG ═══
+const SHEET_ID = "13lT7tc7Iu53dFzJmCrbiWIo5gEs2SGnY9caBEYY1sVo";
+const sheetURL = (name) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
+
+function parseCSV(text) {
+  if (!text || !text.trim()) return [];
+  const lines = text.split("\n").filter(l => l.trim());
+  if (lines.length < 2) return [];
+  const parseRow = (line) => {
+    const vals = []; let cur = ""; let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else { inQ = !inQ; } }
+      else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ""; }
+      else { cur += ch; }
+    }
+    vals.push(cur.trim());
+    return vals;
+  };
+  const headers = parseRow(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseRow(line);
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
+    return obj;
+  });
+}
+
+function parseExpediente(row) {
+  return {
+    ...row,
+    rxOD: { esf: row.rxOD_esf||"", cil: row.rxOD_cil||"", eje: row.rxOD_eje||"", av: row.rxOD_av||"" },
+    rxOI: { esf: row.rxOI_esf||"", cil: row.rxOI_cil||"", eje: row.rxOI_eje||"", av: row.rxOI_av||"" },
+    archivosIds: row.archivosIds ? row.archivosIds.split(",").map(s=>s.trim()).filter(Boolean) : [],
+  };
+}
+
+async function fetchSheet(name) {
+  const res = await fetch(sheetURL(name));
+  if (!res.ok) throw new Error("Error cargando " + name);
+  const text = await res.text();
+  return parseCSV(text);
+}
 
 const fmtD = d => { if (!d) return "\u2014"; return new Date(d + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }); };
 const dUntil = d => { if (!d) return Infinity; const t = new Date(d + "T12:00:00"), n = new Date(); n.setHours(0,0,0,0); return Math.ceil((t - n) / 864e5); };
@@ -177,15 +221,45 @@ export default function DianeOpticasCRM() {
   const [showAddC,setShowAddC]=useState(false);
   const [showAddE,setShowAddE]=useState(null);
   const [mobNav,setMobNav]=useState(false);
-  const [pacs,setPacs]=useState(D_PAC);
-  const [citas,setCitas]=useState(D_CIT);
-  const [segs]=useState(D_SEG);
-  const [ventas]=useState(D_VEN);
-  const [exps,setExps]=useState(D_EXP);
-  const [archivos]=useState(D_ARC);
+  const [pacs,setPacs]=useState([]);
+  const [citas,setCitas]=useState([]);
+  const [segs,setSegs]=useState([]);
+  const [ventas,setVentas]=useState([]);
+  const [exps,setExps]=useState([]);
+  const [archivos,setArchivos]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [dataSource,setDataSource]=useState("");
   const [pF,setPF]=useState("Todos");
   const [cF,setCF]=useState("Todas");
   const [sF,setSF]=useState("Todos");
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [p,c,s,v,e,a] = await Promise.all([
+          fetchSheet("Pacientes"),
+          fetchSheet("Citas"),
+          fetchSheet("Seguimientos"),
+          fetchSheet("Ventas"),
+          fetchSheet("Expedientes").then(rows => rows.map(parseExpediente)),
+          fetchSheet("Archivos"),
+        ]);
+        if (p.length > 0) {
+          setPacs(p); setCitas(c); setSegs(s); setVentas(v); setExps(e); setArchivos(a);
+          setDataSource("Google Sheets");
+        } else {
+          setPacs(D_PAC); setCitas(D_CIT); setSegs(D_SEG); setVentas(D_VEN); setExps(D_EXP); setArchivos(D_ARC);
+          setDataSource("Demo (Sheet vacio)");
+        }
+      } catch(err) {
+        console.warn("Error cargando Google Sheets, usando datos demo:", err);
+        setPacs(D_PAC); setCitas(D_CIT); setSegs(D_SEG); setVentas(D_VEN); setExps(D_EXP); setArchivos(D_ARC);
+        setDataSource("Demo (sin conexion)");
+      }
+      setLoading(false);
+    }
+    loadData();
+  }, []);
 
   const segPend=segs.filter(s=>s.estado==="Pendiente").length;
   const titles={dashboard:"Panel Principal",pacientes:"Pacientes",citas:"Agenda",seguimientos:"Seguimientos",expedientes:"Expedientes",archivos:"Archivos"};
@@ -199,6 +273,8 @@ export default function DianeOpticasCRM() {
   const filtS=segs.filter(s=>sF==="Todos"||s.estado===sF).sort((a,b)=>a.fechaSeg.localeCompare(b.fechaSeg));
   const navItems=[{key:"dashboard",icon:IC.dash,label:"Panel",perm:"dashboard"},{key:"pacientes",icon:IC.usr,label:"Pacientes",perm:"pacientes"},{key:"citas",icon:IC.cal,label:"Agenda",perm:"citas"},{key:"seguimientos",icon:IC.pul,label:"Seguimientos",perm:"seguimientos",badge:segPend},{key:"expedientes",icon:IC.eye,label:"Expedientes",perm:"expediente"},{key:"archivos",icon:IC.clip,label:"Archivos",perm:"archivos"}].filter(n=>can(role,n.perm));
 
+  if (loading) return <><style>{STYLES}</style><div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#FAF7F2",flexDirection:"column",gap:16}}><div style={{width:40,height:40,border:"3px solid #E8DFD1",borderTopColor:"#2A7C6F",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/><div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:"#2D2520"}}>Diane Opticas</div><div style={{fontSize:13,color:"#8B7355"}}>Cargando datos...</div><style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style></div></>;
+
   return <>
     <style>{STYLES}</style>
     <div className="do-layout">
@@ -206,7 +282,7 @@ export default function DianeOpticasCRM() {
         <div className="do-side-brand"><h1>Diane Opticas</h1><p>CRM + Clinica</p></div>
         <nav className="do-side-nav"><div className="do-side-label">Modulos</div>{navItems.map(n=><button key={n.key} className={"do-nav"+(view===n.key?" active":"")} onClick={()=>{setView(n.key);setMobNav(false)}}>{n.icon}{n.label}{n.badge>0&&<span className="do-badge">{n.badge}</span>}</button>)}</nav>
         <div className="role-switch"><div className="do-side-label" style={{padding:"8px 0 6px"}}>Sesion</div>{Object.entries(ROLES).map(([k,v])=><button key={k} className={"role-btn"+(role===k?" active":"")} style={{borderLeftColor:role===k?v.color:"transparent"}} onClick={()=>{setRole(k);setView("dashboard")}}>{IC.lock}<span>{v.label}</span></button>)}</div>
-        <div className="do-side-ft">Plaza Escala - Morelia<br/>v2.0</div>
+        <div className="do-side-ft">Plaza Escala - Morelia<br/>v2.0 - {dataSource}</div>
       </aside>
       <main className="do-main">
         <div className="do-top">
