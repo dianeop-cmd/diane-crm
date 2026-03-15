@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 // ═══ GOOGLE SHEETS CONFIG ═══
-const SHEET_ID = "1NsXy6gdyau2pU_UH0Wj5af3yFQQYPSPC54kBsBHxGdI";
+const SHEET_ID = "13lT7tc7Iu53dFzJmCrbiWIo5gEs2SGnY9caBEYY1sVo";
 const sheetURL = (name) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
 
 function parseCSV(text) {
@@ -42,6 +42,23 @@ async function fetchSheet(name) {
   if (!res.ok) throw new Error("Error cargando " + name);
   const text = await res.text();
   return parseCSV(text);
+}
+
+// ═══ GOOGLE APPS SCRIPT API (escritura) ═══
+const API_URL = "https://script.google.com/macros/s/AKfycbzgqBB6tnmjqL7UciQ2faKKjcWIZGMS-H8ZMir0fOaWQ7gzuLRj3XLUGnM7PNNOcBfU/exec";
+
+async function writeToSheet(sheet, row) {
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "add", sheet, row }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error("Error escribiendo a Sheets:", err);
+    return { success: false, error: err.toString() };
+  }
 }
 
 const fmtD = d => { if (!d) return "\u2014"; return new Date(d + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }); };
@@ -307,9 +324,9 @@ export default function DianeOpticasCRM() {
       </main>
     </div>
     {selPat&&<FichaCliente p={selPat} citas={citas} segs={segs} ventas={ventas} exps={exps} archivos={archivos} onClose={()=>setSelPat(null)} role={role} onAddExp={pid=>setShowAddE(pid)}/>}
-    {showAddP&&<Modal title="Nuevo Paciente" onClose={()=>setShowAddP(false)} footer={null}><AddPacForm onAdd={p=>{setPacs([p,...pacs]);setShowAddP(false)}}/></Modal>}
-    {showAddC&&<AddCitaModal onClose={()=>setShowAddC(false)} onAdd={c=>{setCitas([c,...citas]);setShowAddC(false)}} pacs={pacs}/>}
-    {showAddE!==null&&<AddExpModal onClose={()=>setShowAddE(null)} pacienteId={showAddE} pacs={pacs} onAdd={ex=>{setExps([ex,...exps]);setShowAddE(null)}}/>}
+    {showAddP&&<Modal title="Nuevo Paciente" onClose={()=>setShowAddP(false)} footer={null}><AddPacForm onAdd={p=>{setPacs([p,...pacs]);setShowAddP(false);writeToSheet("Pacientes",p)}}/></Modal>}
+    {showAddC&&<AddCitaModal onClose={()=>setShowAddC(false)} onAdd={c=>{setCitas([c,...citas]);setShowAddC(false);writeToSheet("Citas",c)}} pacs={pacs}/>}
+    {showAddE!==null&&<AddExpModal onClose={()=>setShowAddE(null)} pacienteId={showAddE} pacs={pacs} onAdd={ex=>{const flat={...ex,rxOD_esf:ex.rxOD.esf,rxOD_cil:ex.rxOD.cil,rxOD_eje:ex.rxOD.eje,rxOD_av:ex.rxOD.av,rxOI_esf:ex.rxOI.esf,rxOI_cil:ex.rxOI.cil,rxOI_eje:ex.rxOI.eje,rxOI_av:ex.rxOI.av,archivosIds:(ex.archivosIds||[]).join(",")};delete flat.rxOD;delete flat.rxOI;setExps([ex,...exps]);setShowAddE(null);writeToSheet("Expedientes",flat)}}/>}
   </>;
 }
 
