@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 // ═══ GOOGLE SHEETS CONFIG ═══
-const SHEET_ID = "13lT7tc7Iu53dFzJmCrbiWIo5gEs2SGnY9caBEYY1sVo";
+const SHEET_ID = "1NsXy6gdyau2pU_UH0Wj5af3yFQQYPSPC54kBsBHxGdI";
 const sheetURL = (name) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
 
 function parseCSV(text) {
