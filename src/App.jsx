@@ -74,7 +74,7 @@ async function writeToSheet(sheet, row) {
 
 const fmtD = d => { if (!d) return "\u2014"; return new Date(d + "T12:00:00").toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" }); };
 const dUntil = d => { if (!d) return Infinity; const t = new Date(d + "T12:00:00"), n = new Date(); n.setHours(0,0,0,0); return Math.ceil((t - n) / 864e5); };
-const ini = n => n.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+const ini = n => { if (!n) return "?"; return n.split(" ").slice(0, 2).map(w => w[0] || "").join("").toUpperCase() || "?"; };
 const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 const ROLES = {
@@ -150,7 +150,7 @@ const IC = {
 
 const Tag = ({type}) => type ? <span className={"do-tag do-tag-"+type.toLowerCase().replace(/\s+/g,"-")}>{type}</span> : null;
 const Av = ({name,i=0}) => <div className={"do-av do-av-"+["teal","coral","gold","blue"][i%4]}>{ini(name||"?")}</div>;
-const WA = ({phone,msg}) => <a href={"https://wa.me/52"+phone.replace(/\s/g,"")+"?text="+encodeURIComponent(msg||"Hola, le escribimos de Diane Opticas.")} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-wa" onClick={e=>e.stopPropagation()}>{IC.wa} WhatsApp</a>;
+const WA = ({phone,msg}) => { if(!phone) return null; return <a href={"https://wa.me/52"+(phone||"").replace(/\s/g,"")+"?text="+encodeURIComponent(msg||"Hola, le escribimos de Diane Opticas.")} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-wa" onClick={e=>e.stopPropagation()}>{IC.wa} WhatsApp</a>; };
 const Chip = ({label,active,onClick}) => <button className={"do-chip"+(active?" active":"")} onClick={onClick}>{label}</button>;
 const RxCell = ({val}) => <div className="rx-cell"><span className="rx-val">{val||"\u2014"}</span></div>;
 
@@ -198,7 +198,7 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
     <div className="do-overlay" onClick={onClose}/>
     <div className="do-ficha">
       <div className="ficha-hd"><div style={{display:"flex",alignItems:"center",gap:16}}><div className="do-av do-av-teal" style={{width:52,height:52,fontSize:18}}>{ini(p.nombre)}</div><div><div className="ficha-name">{p.nombre}</div><div style={{display:"flex",gap:8,marginTop:6,alignItems:"center"}}><Tag type={p.tipo}/><span style={{fontSize:12,color:"#C4B5A0"}}>ID: {p.id}</span></div></div></div>
-        <div style={{display:"flex",gap:8,alignItems:"flex-start"}}><WA phone={p.telefono} msg={"Hola "+p.nombre.split(" ")[0]+", le escribimos de Diane Opticas."}/><a href={"tel:+52"+p.telefono.replace(/\s/g,"")} className="do-btn do-btn-out" style={{fontSize:12,textDecoration:"none"}}>{IC.ph} Llamar</a><button className="do-close" onClick={onClose}>{IC.x}</button></div></div>
+        <div style={{display:"flex",gap:8,alignItems:"flex-start"}}><WA phone={p.telefono} msg={"Hola "+(p.nombre||"").split(" ")[0]+", le escribimos de Diane Opticas."}/><a href={"tel:+52"+p.telefono.replace(/\s/g,"")} className="do-btn do-btn-out" style={{fontSize:12,textDecoration:"none"}}>{IC.ph} Llamar</a><button className="do-close" onClick={onClose}>{IC.x}</button></div></div>
       <div className="ficha-tabs">{tabs.map(t=><button key={t.key} className={"ficha-tab"+(tab===t.key?" active":"")} onClick={()=>setTab(t.key)}>{t.label}</button>)}</div>
       <div className="ficha-body">
         {tab==="resumen"&&<div className="ficha-grid"><div>
@@ -264,26 +264,33 @@ export default function DianeOpticasCRM() {
 
   useEffect(() => {
     async function loadData() {
-      try {
-        const [p,c,s,v,e,a] = await Promise.all([
-          fetchSheet("Pacientes"),
-          fetchSheet("Citas"),
-          fetchSheet("Seguimientos"),
-          fetchSheet("Ventas"),
-          fetchSheet("Expedientes").then(rows => rows.map(parseExpediente)),
-          fetchSheet("Archivos"),
-        ]);
-        if (p.length > 0) {
-          setPacs(p); setCitas(c); setSegs(s); setVentas(v); setExps(e); setArchivos(a);
-          setDataSource("Google Sheets");
-        } else {
-          setPacs(D_PAC); setCitas(D_CIT); setSegs(D_SEG); setVentas(D_VEN); setExps(D_EXP); setArchivos(D_ARC);
-          setDataSource("Demo (Sheet vacio)");
+      async function safeLoad(name, parser) {
+        try { 
+          var rows = await fetchSheet(name);
+          return parser ? rows.map(parser) : rows;
+        } catch(e) { 
+          console.warn("Error en hoja " + name + ":", e);
+          return null; 
         }
-      } catch(err) {
-        console.warn("Error cargando Google Sheets, usando datos demo:", err);
+      }
+      var p = await safeLoad("Pacientes");
+      var c = await safeLoad("Citas");
+      var s = await safeLoad("Seguimientos");
+      var v = await safeLoad("Ventas");
+      var e = await safeLoad("Expedientes", parseExpediente);
+      var a = await safeLoad("Archivos");
+
+      if (p && p.length > 0) {
+        setPacs(p);
+        setCitas(c || []);
+        setSegs(s || []);
+        setVentas(v || []);
+        setExps(e || []);
+        setArchivos(a || []);
+        setDataSource("Google Sheets (" + p.length + " pac)");
+      } else {
         setPacs(D_PAC); setCitas(D_CIT); setSegs(D_SEG); setVentas(D_VEN); setExps(D_EXP); setArchivos(D_ARC);
-        setDataSource("Demo (sin conexion)");
+        setDataSource("Demo (error conexion)");
       }
       setLoading(false);
     }
@@ -327,7 +334,7 @@ export default function DianeOpticasCRM() {
             {alerts.length>0&&<div style={{marginBottom:24}}><h3 className="sec-title">Atencion Requerida</h3>{alerts.map((a,i)=><div key={i} className={"do-alert "+a.t}><div className={"do-alert-ic "+(a.t==="urgent"?"u":"r")}>{IC.alrt}</div><div className="do-alert-c"><div className="do-alert-t">{a.title}</div><div className="do-alert-s">{a.sub}</div></div></div>)}</div>}
             <div className="do-tbl"><div className="do-tbl-hd"><h3>Proximas Citas</h3></div>{citasSem.length>0?<><table><thead><tr><th>Paciente</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th></th></tr></thead><tbody>{citasSem.map((c,i)=>{const p=pacs.find(x=>x.id===c.pacienteId);return <tr key={c.id} onClick={()=>p&&setSelPat(p)}><td><div className="do-pcell"><Av name={c.paciente} i={i}/><span className="do-pname">{c.paciente}</span></div></td><td>{fmtD(c.fecha)}</td><td>{c.hora}</td><td>{c.tipo}</td><td><Tag type={c.estado}/></td><td>{p&&<WA phone={p.telefono} msg={"Recordatorio cita "+fmtD(c.fecha)+" "+c.hora}/>}</td></tr>})}</tbody></table><div className="do-mob-list">{citasSem.map((c,i)=>{const p=pacs.find(x=>x.id===c.pacienteId);return <div key={c.id} className="do-mob-card" onClick={()=>p&&setSelPat(p)}><Av name={c.paciente} i={i}/><div className="do-mob-card-info"><div className="do-mob-card-name">{c.paciente}</div><div className="do-mob-card-sub">{fmtD(c.fecha)} · {c.hora} · {c.tipo}</div><div className="do-mob-card-meta"><Tag type={c.estado}/></div></div><div className="do-mob-card-right">{p&&<WA phone={p.telefono} msg={"Recordatorio "+fmtD(c.fecha)}/>}</div></div>})}</div></>:<div className="do-empty"><h4>Sin citas esta semana</h4></div>}</div>
           </div>}
-          {view==="pacientes"&&<div className="do-tbl"><div className="do-tbl-hd"><h3>Pacientes ({filtP.length})</h3><div className="do-filters">{["Todos","Nuevo","Recurrente","Convenio"].map(f=><Chip key={f} label={f} active={pF===f} onClick={()=>setPF(f)}/>)}</div></div><table><thead><tr><th>Paciente</th><th>Telefono</th><th>Tipo</th><th>Ultima</th><th>Proxima</th><th>Fuente</th><th></th></tr></thead><tbody>{filtP.map((p,i)=><tr key={p.id} onClick={()=>setSelPat(p)}><td><div className="do-pcell"><Av name={p.nombre} i={i}/><div><div className="do-pname">{p.nombre}</div><div className="do-pdetail">{p.email||"Sin email"}</div></div></div></td><td>{p.telefono}</td><td><Tag type={p.tipo}/></td><td>{fmtD(p.ultimaVisita)}</td><td style={{color:p.proximaCita?"#2A7C6F":"#D4726A"}}>{p.proximaCita?fmtD(p.proximaCita):"Sin agendar"}</td><td style={{fontSize:12,color:"#C4B5A0"}}>{p.fuente}</td><td><WA phone={p.telefono} msg={"Hola "+p.nombre.split(" ")[0]+", le escribimos de Diane Opticas."}/></td></tr>)}</tbody></table><div className="do-mob-list">{filtP.map((p,i)=><div key={p.id} className="do-mob-card" onClick={()=>setSelPat(p)}><Av name={p.nombre} i={i}/><div className="do-mob-card-info"><div className="do-mob-card-name">{p.nombre}</div><div className="do-mob-card-sub">{p.telefono} · {p.fuente}</div><div className="do-mob-card-meta"><Tag type={p.tipo}/><span style={{fontSize:11,color:p.proximaCita?"#2A7C6F":"#D4726A"}}>{p.proximaCita?fmtD(p.proximaCita):"Sin cita"}</span></div></div><div className="do-mob-card-right"><WA phone={p.telefono} msg={"Hola "+p.nombre.split(" ")[0]+", le escribimos de Diane Opticas."}/></div></div>)}</div>{filtP.length===0&&<div className="do-empty"><h4>Sin resultados</h4></div>}</div>}
+          {view==="pacientes"&&<div className="do-tbl"><div className="do-tbl-hd"><h3>Pacientes ({filtP.length})</h3><div className="do-filters">{["Todos","Nuevo","Recurrente","Convenio"].map(f=><Chip key={f} label={f} active={pF===f} onClick={()=>setPF(f)}/>)}</div></div><table><thead><tr><th>Paciente</th><th>Telefono</th><th>Tipo</th><th>Ultima</th><th>Proxima</th><th>Fuente</th><th></th></tr></thead><tbody>{filtP.map((p,i)=><tr key={p.id} onClick={()=>setSelPat(p)}><td><div className="do-pcell"><Av name={p.nombre} i={i}/><div><div className="do-pname">{p.nombre}</div><div className="do-pdetail">{p.email||"Sin email"}</div></div></div></td><td>{p.telefono}</td><td><Tag type={p.tipo}/></td><td>{fmtD(p.ultimaVisita)}</td><td style={{color:p.proximaCita?"#2A7C6F":"#D4726A"}}>{p.proximaCita?fmtD(p.proximaCita):"Sin agendar"}</td><td style={{fontSize:12,color:"#C4B5A0"}}>{p.fuente}</td><td><WA phone={p.telefono} msg={"Hola "+(p.nombre||"").split(" ")[0]+", le escribimos de Diane Opticas."}/></td></tr>)}</tbody></table><div className="do-mob-list">{filtP.map((p,i)=><div key={p.id} className="do-mob-card" onClick={()=>setSelPat(p)}><Av name={p.nombre} i={i}/><div className="do-mob-card-info"><div className="do-mob-card-name">{p.nombre}</div><div className="do-mob-card-sub">{p.telefono} · {p.fuente}</div><div className="do-mob-card-meta"><Tag type={p.tipo}/><span style={{fontSize:11,color:p.proximaCita?"#2A7C6F":"#D4726A"}}>{p.proximaCita?fmtD(p.proximaCita):"Sin cita"}</span></div></div><div className="do-mob-card-right"><WA phone={p.telefono} msg={"Hola "+(p.nombre||"").split(" ")[0]+", le escribimos de Diane Opticas."}/></div></div>)}</div>{filtP.length===0&&<div className="do-empty"><h4>Sin resultados</h4></div>}</div>}
           {view==="citas"&&<div className="do-tbl"><div className="do-tbl-hd"><h3>Agenda ({filtC.length})</h3><div className="do-filters">{["Todas","Confirmada","Pendiente","Por confirmar"].map(f=><Chip key={f} label={f} active={cF===f} onClick={()=>setCF(f)}/>)}</div></div><table><thead><tr><th>Paciente</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th>Notas</th><th></th></tr></thead><tbody>{filtC.map((c,i)=>{const p=pacs.find(x=>x.id===c.pacienteId);return <tr key={c.id} style={{opacity:dUntil(c.fecha)<0?.5:1}} onClick={()=>p&&setSelPat(p)}><td><div className="do-pcell"><Av name={c.paciente} i={i}/><span className="do-pname">{c.paciente}</span></div></td><td>{fmtD(c.fecha)}</td><td>{c.hora}</td><td>{c.tipo}</td><td><Tag type={c.estado}/></td><td style={{fontSize:12,color:"#C4B5A0",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.notas}</td><td>{p&&<WA phone={p.telefono} msg={"Recordatorio cita "+fmtD(c.fecha)}/>}</td></tr>})}</tbody></table><div className="do-mob-list">{filtC.map((c,i)=>{const p=pacs.find(x=>x.id===c.pacienteId);return <div key={c.id} className="do-mob-card" style={{opacity:dUntil(c.fecha)<0?.5:1}} onClick={()=>p&&setSelPat(p)}><Av name={c.paciente} i={i}/><div className="do-mob-card-info"><div className="do-mob-card-name">{c.paciente}</div><div className="do-mob-card-sub">{fmtD(c.fecha)} · {c.hora} · {c.tipo}</div><div className="do-mob-card-meta"><Tag type={c.estado}/><span style={{fontSize:11,color:"#8B7355"}}>{c.notas}</span></div></div><div className="do-mob-card-right">{p&&<WA phone={p.telefono} msg={"Recordatorio cita "+fmtD(c.fecha)}/>}</div></div>})}</div></div>}
           {view==="seguimientos"&&<div className="do-tbl"><div className="do-tbl-hd"><h3>Seguimientos ({filtS.length})</h3><div className="do-filters">{["Todos","Pendiente","Programado"].map(f=><Chip key={f} label={f} active={sF===f} onClick={()=>setSF(f)}/>)}</div></div><table><thead><tr><th>Paciente</th><th>Tipo</th><th>Mensaje</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>{filtS.map((s,i)=>{const p=pacs.find(x=>x.id===s.pacienteId);const urg=s.estado==="Pendiente"&&dUntil(s.fechaSeg)<=3;return <tr key={s.id} style={{background:urg?"#FDF0EE":undefined}}><td><div className="do-pcell"><Av name={s.paciente} i={i}/><span className="do-pname">{s.paciente}</span></div></td><td><Tag type={s.tipo}/></td><td style={{fontSize:12.5,maxWidth:240}}>{s.mensaje}</td><td style={{color:urg?"#D4726A":undefined,fontWeight:urg?600:400}}>{fmtD(s.fechaSeg)}{urg&&<span style={{fontSize:10,display:"block",color:"#D4726A"}}>Urgente</span>}</td><td><Tag type={s.estado}/></td><td>{p&&<WA phone={p.telefono} msg={s.mensaje}/>}</td></tr>})}</tbody></table><div className="do-mob-list">{filtS.map((s,i)=>{const p=pacs.find(x=>x.id===s.pacienteId);const urg=s.estado==="Pendiente"&&dUntil(s.fechaSeg)<=3;return <div key={s.id} className="do-mob-card" style={{background:urg?"#FDF0EE":undefined}}><Av name={s.paciente} i={i}/><div className="do-mob-card-info"><div className="do-mob-card-name">{s.paciente}</div><div className="do-mob-card-sub">{s.mensaje}</div><div className="do-mob-card-meta"><Tag type={s.tipo}/><Tag type={s.estado}/><span style={{fontSize:11,color:urg?"#D4726A":"#8B7355",fontWeight:urg?600:400}}>{fmtD(s.fechaSeg)}</span></div></div><div className="do-mob-card-right">{p&&<WA phone={p.telefono} msg={s.mensaje}/>}</div></div>})}</div></div>}
           {view==="expedientes"&&<div className="do-tbl"><div className="do-tbl-hd"><h3>Expedientes ({exps.length})</h3><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowAddE("")}>{IC.plus} Nueva Consulta</button></div><table><thead><tr><th>Paciente</th><th>Fecha</th><th>Motivo</th><th>Diagnostico</th><th>Prox.</th><th></th></tr></thead><tbody>{exps.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map((ex,i)=>{const p=pacs.find(x=>x.id===ex.pacienteId);const isA=ex.diagnostico&&ex.diagnostico.includes("SOSPECHA");return <tr key={ex.id} onClick={()=>p&&setSelPat(p)}><td><div className="do-pcell"><Av name={p?p.nombre:"?"} i={i}/><span className="do-pname">{p?p.nombre:"?"}</span></div></td><td>{fmtD(ex.fecha)}</td><td style={{fontSize:13}}>{ex.motivo}</td><td style={{fontSize:12,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{isA?<span style={{color:"#D4726A",fontWeight:600}}>{"!! "+ex.diagnostico.slice(0,40)+"..."}</span>:(ex.diagnostico||"").slice(0,40)+"..."}</td><td>{fmtD(ex.proximaRevision)}</td><td><button className="do-btn do-btn-out" style={{fontSize:11,padding:"4px 10px"}} onClick={ev=>{ev.stopPropagation();p&&setSelPat(p)}}>Ficha</button></td></tr>})}</tbody></table></div>}
