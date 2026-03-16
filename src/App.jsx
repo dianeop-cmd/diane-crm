@@ -479,7 +479,7 @@ table{width:100%;border-collapse:collapse}thead th{padding:10px 18px;text-align:
 .ficha-tabs{gap:0}.ficha-tab{padding:10px 12px;font-size:11.5px}
 .ficha-hd{flex-wrap:wrap;gap:12px}
 }
-.do-mob-list{display:none !important;flex-direction:column;padding:0}
+.do-mob-list{display:none;flex-direction:column;padding:0}
 .do-mob-card{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid rgba(232,223,209,.4);cursor:pointer;transition:background .15s}
 .do-mob-card:hover{background:rgba(232,223,209,.15)}
 .do-mob-card:last-child{border-bottom:none}
