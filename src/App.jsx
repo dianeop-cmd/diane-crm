@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 // ═══ GOOGLE SHEETS CONFIG ═══
-const SHEET_ID = "1NsXy6gdyau2pU_UH0Wj5af3yFQQYPSPC54kBsBHxGdI";
+const SHEET_ID = "13lT7tc7Iu53dFzJmCrbiWIo5gEs2SGnY9caBEYY1sVo";
 const sheetURL = (name) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
 
 function parseCSV(text) {
@@ -176,7 +176,7 @@ function ExpedienteCard({ex,archivos,expanded,onToggle}) {
   </div>;
 }
 
-function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp}) {
+function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,onUpload}) {
   const [tab,setTab] = useState("resumen");
   const [expO,setExpO] = useState(null);
   const pc=citas.filter(c=>c.pacienteId===p.id), ps=segs.filter(s=>s.pacienteId===p.id), pv=ventas.filter(v=>v.pacienteId===p.id);
@@ -201,7 +201,7 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp})
         {tab==="ventas"&&<div>{pv.length>0?pv.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(v=><div key={v.id} className="list-row"><div><div style={{fontWeight:500,fontSize:14}}>{v.concepto}</div><div style={{fontSize:12,color:"#C4B5A0"}}>{fmtD(v.fecha)} - {v.metodo}</div></div><div style={{textAlign:"right"}}><div style={{fontWeight:600,fontSize:15,color:"#2D2520"}}>{"$"+v.monto.toLocaleString()}</div><Tag type={v.estado}/></div></div>):<div className="do-empty"><h4>Sin ventas</h4></div>}</div>}
         {tab==="seguimientos"&&<div>{ps.length>0?ps.map(s=><div key={s.id} className="list-row"><div><div style={{display:"flex",gap:8,alignItems:"center"}}><Tag type={s.tipo}/><span style={{fontWeight:500,fontSize:13}}>{fmtD(s.fechaSeg)}</span></div><div style={{fontSize:13,color:"#4A3F35",marginTop:6}}>{s.mensaje}</div></div><Tag type={s.estado}/></div>):<div className="do-empty"><h4>Sin seguimientos</h4></div>}</div>}
         {tab==="expediente"&&<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><div style={{fontSize:12,color:"#8B7355"}}>{pe.length} consultas</div><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>onAddExp(p.id)}>{IC.plus} Nueva Consulta</button></div>{pe.length>0?pe.map(ex=><ExpedienteCard key={ex.id} ex={ex} archivos={archivos} expanded={expO===ex.id} onToggle={()=>setExpO(expO===ex.id?null:ex.id)}/>):<div className="do-empty"><h4>Sin expedientes</h4><p>Registra la primera consulta</p></div>}</div>}
-        {tab==="archivos"&&<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><div style={{fontSize:12,color:"#8B7355"}}>{pa.length} archivos</div><button className="do-btn do-btn-pri" style={{fontSize:12}}>{IC.up} Subir</button></div>{pa.length>0?pa.map(a=><div key={a.id} className="arc-row"><div className="arc-icon">{a.tipo==="Imagen"?"\uD83D\uDDBC":"\uD83D\uDCC4"}</div><div className="arc-info"><div className="arc-name">{a.nombre}</div><div className="arc-meta">{a.categoria} - {a.tamano} - {fmtD(a.fecha)}{a.expedienteId?" - Exp: "+a.expedienteId:""}</div></div><a href={a.url} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-out" style={{fontSize:11,padding:"4px 10px"}}>{IC.dl} Abrir</a></div>):<div className="do-empty"><h4>Sin archivos</h4></div>}</div>}
+        {tab==="archivos"&&<div><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><div style={{fontSize:12,color:"#8B7355"}}>{pa.length} archivos</div><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>onUpload(p.id)}>{IC.up} Subir</button></div>{pa.length>0?pa.map(a=><div key={a.id} className="arc-row"><div className="arc-icon">{a.tipo==="Imagen"?"\uD83D\uDDBC":"\uD83D\uDCC4"}</div><div className="arc-info"><div className="arc-name">{a.nombre}</div><div className="arc-meta">{a.categoria} - {a.tamano} - {fmtD(a.fecha)}{a.expedienteId?" - Exp: "+a.expedienteId:""}</div></div><a href={a.url} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-out" style={{fontSize:11,padding:"4px 10px"}}>{IC.dl} Abrir</a></div>):<div className="do-empty"><h4>Sin archivos</h4></div>}</div>}
       </div>
     </div>
   </>;
@@ -237,6 +237,7 @@ export default function DianeOpticasCRM() {
   const [showAddP,setShowAddP]=useState(false);
   const [showAddC,setShowAddC]=useState(false);
   const [showAddE,setShowAddE]=useState(null);
+  const [showUpload,setShowUpload]=useState(null);
   const [mobNav,setMobNav]=useState(false);
   const [pacs,setPacs]=useState([]);
   const [citas,setCitas]=useState([]);
@@ -319,15 +320,106 @@ export default function DianeOpticasCRM() {
           {view==="citas"&&<div className="do-tbl"><div className="do-tbl-hd"><h3>Agenda ({filtC.length})</h3><div className="do-filters">{["Todas","Confirmada","Pendiente","Por confirmar"].map(f=><Chip key={f} label={f} active={cF===f} onClick={()=>setCF(f)}/>)}</div></div><table><thead><tr><th>Paciente</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th>Notas</th><th></th></tr></thead><tbody>{filtC.map((c,i)=>{const p=pacs.find(x=>x.id===c.pacienteId);return <tr key={c.id} style={{opacity:dUntil(c.fecha)<0?.5:1}} onClick={()=>p&&setSelPat(p)}><td><div className="do-pcell"><Av name={c.paciente} i={i}/><span className="do-pname">{c.paciente}</span></div></td><td>{fmtD(c.fecha)}</td><td>{c.hora}</td><td>{c.tipo}</td><td><Tag type={c.estado}/></td><td style={{fontSize:12,color:"#C4B5A0",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.notas}</td><td>{p&&<WA phone={p.telefono} msg={"Recordatorio cita "+fmtD(c.fecha)}/>}</td></tr>})}</tbody></table></div>}
           {view==="seguimientos"&&<div className="do-tbl"><div className="do-tbl-hd"><h3>Seguimientos ({filtS.length})</h3><div className="do-filters">{["Todos","Pendiente","Programado"].map(f=><Chip key={f} label={f} active={sF===f} onClick={()=>setSF(f)}/>)}</div></div><table><thead><tr><th>Paciente</th><th>Tipo</th><th>Mensaje</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>{filtS.map((s,i)=>{const p=pacs.find(x=>x.id===s.pacienteId);const urg=s.estado==="Pendiente"&&dUntil(s.fechaSeg)<=3;return <tr key={s.id} style={{background:urg?"#FDF0EE":undefined}}><td><div className="do-pcell"><Av name={s.paciente} i={i}/><span className="do-pname">{s.paciente}</span></div></td><td><Tag type={s.tipo}/></td><td style={{fontSize:12.5,maxWidth:240}}>{s.mensaje}</td><td style={{color:urg?"#D4726A":undefined,fontWeight:urg?600:400}}>{fmtD(s.fechaSeg)}{urg&&<span style={{fontSize:10,display:"block",color:"#D4726A"}}>Urgente</span>}</td><td><Tag type={s.estado}/></td><td>{p&&<WA phone={p.telefono} msg={s.mensaje}/>}</td></tr>})}</tbody></table></div>}
           {view==="expedientes"&&<div className="do-tbl"><div className="do-tbl-hd"><h3>Expedientes ({exps.length})</h3><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowAddE("")}>{IC.plus} Nueva Consulta</button></div><table><thead><tr><th>Paciente</th><th>Fecha</th><th>Motivo</th><th>Diagnostico</th><th>Prox.</th><th></th></tr></thead><tbody>{exps.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map((ex,i)=>{const p=pacs.find(x=>x.id===ex.pacienteId);const isA=ex.diagnostico&&ex.diagnostico.includes("SOSPECHA");return <tr key={ex.id} onClick={()=>p&&setSelPat(p)}><td><div className="do-pcell"><Av name={p?p.nombre:"?"} i={i}/><span className="do-pname">{p?p.nombre:"?"}</span></div></td><td>{fmtD(ex.fecha)}</td><td style={{fontSize:13}}>{ex.motivo}</td><td style={{fontSize:12,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{isA?<span style={{color:"#D4726A",fontWeight:600}}>{"!! "+ex.diagnostico.slice(0,40)+"..."}</span>:(ex.diagnostico||"").slice(0,40)+"..."}</td><td>{fmtD(ex.proximaRevision)}</td><td><button className="do-btn do-btn-out" style={{fontSize:11,padding:"4px 10px"}} onClick={ev=>{ev.stopPropagation();p&&setSelPat(p)}}>Ficha</button></td></tr>})}</tbody></table></div>}
-          {view==="archivos"&&<div className="do-tbl"><div className="do-tbl-hd"><h3>Archivos ({archivos.length})</h3><button className="do-btn do-btn-pri" style={{fontSize:12}}>{IC.up} Subir</button></div><table><thead><tr><th>Archivo</th><th>Paciente</th><th>Categoria</th><th>Fecha</th><th>Tamano</th><th></th></tr></thead><tbody>{archivos.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map((a,i)=>{const p=pacs.find(x=>x.id===a.pacienteId);return <tr key={a.id}><td><div className="do-pcell"><span style={{fontSize:20}}>{a.tipo==="Imagen"?"\uD83D\uDDBC":"\uD83D\uDCC4"}</span><div><div className="do-pname">{a.nombre}</div><div className="do-pdetail">{a.expedienteId?"Exp: "+a.expedienteId:"General"}</div></div></div></td><td style={{cursor:"pointer",color:"#2A7C6F"}} onClick={()=>p&&setSelPat(p)}>{p?p.nombre:"?"}</td><td><Tag type={a.categoria}/></td><td>{fmtD(a.fecha)}</td><td style={{fontSize:12,color:"#C4B5A0"}}>{a.tamano}</td><td><a href={a.url} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-out" style={{fontSize:11,padding:"4px 10px"}}>{IC.dl} Abrir</a></td></tr>})}</tbody></table></div>}
+          {view==="archivos"&&<div className="do-tbl"><div className="do-tbl-hd"><h3>Archivos ({archivos.length})</h3><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowUpload("")}>{IC.up} Subir</button></div><table><thead><tr><th>Archivo</th><th>Paciente</th><th>Categoria</th><th>Fecha</th><th>Tamano</th><th></th></tr></thead><tbody>{archivos.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map((a,i)=>{const p=pacs.find(x=>x.id===a.pacienteId);return <tr key={a.id}><td><div className="do-pcell"><span style={{fontSize:20}}>{a.tipo==="Imagen"?"\uD83D\uDDBC":"\uD83D\uDCC4"}</span><div><div className="do-pname">{a.nombre}</div><div className="do-pdetail">{a.expedienteId?"Exp: "+a.expedienteId:"General"}</div></div></div></td><td style={{cursor:"pointer",color:"#2A7C6F"}} onClick={()=>p&&setSelPat(p)}>{p?p.nombre:"?"}</td><td><Tag type={a.categoria}/></td><td>{fmtD(a.fecha)}</td><td style={{fontSize:12,color:"#C4B5A0"}}>{a.tamano}</td><td><a href={a.url} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-out" style={{fontSize:11,padding:"4px 10px"}}>{IC.dl} Abrir</a></td></tr>})}</tbody></table></div>}
         </div>
       </main>
     </div>
-    {selPat&&<FichaCliente p={selPat} citas={citas} segs={segs} ventas={ventas} exps={exps} archivos={archivos} onClose={()=>setSelPat(null)} role={role} onAddExp={pid=>setShowAddE(pid)}/>}
+    {selPat&&<FichaCliente p={selPat} citas={citas} segs={segs} ventas={ventas} exps={exps} archivos={archivos} onClose={()=>setSelPat(null)} role={role} onAddExp={pid=>setShowAddE(pid)} onUpload={pid=>setShowUpload(pid)}/>}
     {showAddP&&<Modal title="Nuevo Paciente" onClose={()=>setShowAddP(false)} footer={null}><AddPacForm onAdd={p=>{setPacs([p,...pacs]);setShowAddP(false);writeToSheet("Pacientes",p)}}/></Modal>}
     {showAddC&&<AddCitaModal onClose={()=>setShowAddC(false)} onAdd={c=>{setCitas([c,...citas]);setShowAddC(false);writeToSheet("Citas",c)}} pacs={pacs}/>}
     {showAddE!==null&&<AddExpModal onClose={()=>setShowAddE(null)} pacienteId={showAddE} pacs={pacs} onAdd={ex=>{const flat={...ex,rxOD_esf:ex.rxOD.esf,rxOD_cil:ex.rxOD.cil,rxOD_eje:ex.rxOD.eje,rxOD_av:ex.rxOD.av,rxOI_esf:ex.rxOI.esf,rxOI_cil:ex.rxOI.cil,rxOI_eje:ex.rxOI.eje,rxOI_av:ex.rxOI.av,archivosIds:(ex.archivosIds||[]).join(",")};delete flat.rxOD;delete flat.rxOI;setExps([ex,...exps]);setShowAddE(null);writeToSheet("Expedientes",flat)}}/>}
+    {showUpload!==null&&<UploadModal onClose={()=>setShowUpload(null)} pacienteId={showUpload} pacs={pacs} role={role} onUploaded={a=>{setArchivos([a,...archivos]);setShowUpload(null)}}/>}
   </>;
+}
+
+function UploadModal({onClose,pacienteId,pacs,role,onUploaded}) {
+  const [f,sf]=useState({pacienteId:pacienteId||"",expedienteId:"",categoria:"General"});
+  const [file,setFile]=useState(null);
+  const [preview,setPreview]=useState(null);
+  const [uploading,setUploading]=useState(false);
+  const [error,setError]=useState("");
+
+  const handleFile=(ev)=>{
+    const selected=ev.target.files[0];
+    if(!selected)return;
+    if(selected.size>10*1024*1024){setError("Archivo muy grande (max 10MB)");return;}
+    setFile(selected);setError("");
+    if(selected.type.startsWith("image/")){
+      const reader=new FileReader();
+      reader.onload=(e)=>setPreview(e.target.result);
+      reader.readAsDataURL(selected);
+    } else { setPreview(null); }
+  };
+
+  const handleUpload=async()=>{
+    if(!file||!f.pacienteId){setError("Selecciona paciente y archivo");return;}
+    setUploading(true);setError("");
+    try {
+      const reader=new FileReader();
+      reader.onload=async(e)=>{
+        const base64=e.target.result.split(",")[1];
+        const archivoId=uid("A");
+        const res=await fetch(API_URL,{
+          method:"POST",
+          body:JSON.stringify({
+            action:"upload",
+            archivoId:archivoId,
+            pacienteId:f.pacienteId,
+            expedienteId:f.expedienteId,
+            categoria:f.categoria,
+            fileName:file.name,
+            mimeType:file.type,
+            fileData:base64,
+            subidoPor:role
+          })
+        });
+        const data=await res.json();
+        if(data.success){
+          onUploaded({
+            id:archivoId,pacienteId:f.pacienteId,expedienteId:f.expedienteId,
+            nombre:file.name,tipo:file.type.startsWith("image/")?"Imagen":"PDF",
+            categoria:f.categoria,fecha:new Date().toISOString().split("T")[0],
+            url:data.fileUrl,tamano:data.tamano,subidoPor:role
+          });
+        } else { setError(data.error||"Error al subir");setUploading(false); }
+      };
+      reader.readAsDataURL(file);
+    } catch(err){ setError(err.toString());setUploading(false); }
+  };
+
+  return <Modal title="Subir Archivo" onClose={onClose} footer={<>
+    <button className="do-btn do-btn-out" onClick={onClose}>Cancelar</button>
+    <button className="do-btn do-btn-pri" onClick={handleUpload} disabled={uploading||!file}>
+      {uploading?"Subiendo...":"Subir Archivo"}
+    </button>
+  </>}>
+    {!pacienteId&&<div className="do-fg"><label className="do-fl">Paciente *</label>
+      <select className="do-fi" value={f.pacienteId} onChange={ev=>sf({...f,pacienteId:ev.target.value})}>
+        <option value="">Seleccionar...</option>
+        {pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
+      </select>
+    </div>}
+    <div className="do-fg"><label className="do-fl">Categoria</label>
+      <select className="do-fi" value={f.categoria} onChange={ev=>sf({...f,categoria:ev.target.value})}>
+        <option>General</option><option>Retinografia</option><option>Paquimetria</option>
+        <option>Receta</option><option>Convenio</option><option>Foto clinica</option>
+        <option>Campimetria</option><option>OCT</option><option>Otro</option>
+      </select>
+    </div>
+    <div className="do-fg"><label className="do-fl">Expediente (opcional)</label>
+      <input className="do-fi" value={f.expedienteId} onChange={ev=>sf({...f,expedienteId:ev.target.value})} placeholder="EX001 (dejar vacio si no aplica)"/>
+    </div>
+    <div className="do-fg"><label className="do-fl">Archivo *</label>
+      <div style={{border:"2px dashed #E8DFD1",borderRadius:10,padding:24,textAlign:"center",cursor:"pointer",background:file?"#E8F5F2":"#FDFBF8",transition:"all .2s"}} onClick={()=>document.getElementById("file-input").click()}>
+        <input id="file-input" type="file" accept="image/*,.pdf" style={{display:"none"}} onChange={handleFile}/>
+        {file?<div><div style={{fontSize:14,fontWeight:500,color:"#2D2520"}}>{file.name}</div><div style={{fontSize:12,color:"#8B7355",marginTop:4}}>{(file.size/1024).toFixed(0)} KB - {file.type}</div></div>
+        :<div><div style={{fontSize:32,marginBottom:8}}>📎</div><div style={{fontSize:14,color:"#8B7355"}}>Haz clic para seleccionar foto o PDF</div><div style={{fontSize:12,color:"#C4B5A0",marginTop:4}}>Max 10 MB</div></div>}
+      </div>
+    </div>
+    {preview&&<div className="do-fg"><label className="do-fl">Vista previa</label><img src={preview} style={{maxWidth:"100%",maxHeight:200,borderRadius:8,border:"1px solid #E8DFD1"}} alt="preview"/></div>}
+    {error&&<div style={{color:"#D4726A",fontSize:13,padding:"8px 12px",background:"#FDF0EE",borderRadius:8,marginTop:8}}>{error}</div>}
+    {uploading&&<div style={{textAlign:"center",padding:16}}><div style={{width:24,height:24,border:"3px solid #E8DFD1",borderTopColor:"#2A7C6F",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto"}}/><div style={{fontSize:13,color:"#8B7355",marginTop:8}}>Subiendo a Google Drive...</div></div>}
+  </Modal>;
 }
 
 function AddPacForm({onAdd}) {
