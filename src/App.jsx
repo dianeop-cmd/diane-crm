@@ -38,10 +38,21 @@ function parseExpediente(row) {
 }
 
 async function fetchSheet(name) {
-  const res = await fetch(sheetURL(name));
-  if (!res.ok) throw new Error("Error cargando " + name);
-  const text = await res.text();
-  return parseCSV(text);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(sheetURL(name), { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const text = await res.text();
+    if (text.trim().startsWith("<!") || text.trim().startsWith("<html")) throw new Error("HTML response");
+    var rows = parseCSV(text);
+    if (name === "Ventas") rows = rows.map(function(r) { r.monto = parseFloat(r.monto) || 0; return r; });
+    return rows;
+  } catch(err) {
+    clearTimeout(timeout);
+    throw err;
+  }
 }
 
 // ═══ GOOGLE APPS SCRIPT API (escritura) ═══
@@ -192,7 +203,7 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
       <div className="ficha-body">
         {tab==="resumen"&&<div className="ficha-grid"><div>
           <div className="do-dsec"><div className="do-dsec-t">Contacto</div><div className="do-df"><span className="do-df-l">Telefono</span><span className="do-df-v">{p.telefono}</span></div><div className="do-df"><span className="do-df-l">Email</span><span className="do-df-v">{p.email||"\u2014"}</span></div><div className="do-df"><span className="do-df-l">Nacimiento</span><span className="do-df-v">{fmtD(p.fechaNac)}</span></div><div className="do-df"><span className="do-df-l">Fuente</span><span className="do-df-v">{p.fuente}</span></div></div>
-          <div className="do-dsec"><div className="do-dsec-t">Actividad</div><div className="do-df"><span className="do-df-l">Ultima visita</span><span className="do-df-v">{fmtD(p.ultimaVisita)}</span></div><div className="do-df"><span className="do-df-l">Proxima cita</span><span className="do-df-v" style={{color:p.proximaCita?"#2A7C6F":"#D4726A"}}>{p.proximaCita?fmtD(p.proximaCita):"Sin agendar"}</span></div><div className="do-df"><span className="do-df-l">Total compras</span><span className="do-df-v">{"$"+pv.reduce((s,v)=>s+v.monto,0).toLocaleString()+" MXN"}</span></div><div className="do-df"><span className="do-df-l">Expedientes</span><span className="do-df-v">{pe.length+" consultas"}</span></div></div>
+          <div className="do-dsec"><div className="do-dsec-t">Actividad</div><div className="do-df"><span className="do-df-l">Ultima visita</span><span className="do-df-v">{fmtD(p.ultimaVisita)}</span></div><div className="do-df"><span className="do-df-l">Proxima cita</span><span className="do-df-v" style={{color:p.proximaCita?"#2A7C6F":"#D4726A"}}>{p.proximaCita?fmtD(p.proximaCita):"Sin agendar"}</span></div><div className="do-df"><span className="do-df-l">Total compras</span><span className="do-df-v">{"$"+pv.reduce((s,v)=>s+(parseFloat(v.monto)||0),0).toLocaleString()+" MXN"}</span></div><div className="do-df"><span className="do-df-l">Expedientes</span><span className="do-df-v">{pe.length+" consultas"}</span></div></div>
         </div><div>
           <div className="do-dsec"><div className="do-dsec-t">Notas</div><div className="do-notes">{p.notas||"Sin notas."}</div></div>
           {pe.length>0&&<div className="do-dsec"><div className="do-dsec-t">{"Ultima Rx ("+fmtD(pe[0].fecha)+")"}</div><div className="rx-grid rx-compact"><div className="rx-header"> </div><div className="rx-header">Esf</div><div className="rx-header">Cil</div><div className="rx-header">Eje</div><div className="rx-header">AV</div><div className="rx-header">Add</div><div className="rx-eye">OD</div><RxCell val={pe[0].rxOD.esf}/><RxCell val={pe[0].rxOD.cil}/><RxCell val={pe[0].rxOD.eje}/><RxCell val={pe[0].rxOD.av}/><RxCell val={pe[0].addOD}/><div className="rx-eye">OI</div><RxCell val={pe[0].rxOI.esf}/><RxCell val={pe[0].rxOI.cil}/><RxCell val={pe[0].rxOI.eje}/><RxCell val={pe[0].rxOI.av}/><RxCell val={pe[0].addOI}/></div></div>}
@@ -466,6 +477,15 @@ table{width:100%;border-collapse:collapse}thead th{padding:10px 18px;text-align:
 .arc-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #F3EDE4}.arc-row:last-child{border-bottom:none}.arc-icon{font-size:22px;flex-shrink:0;width:36px;text-align:center}.arc-info{flex:1;min-width:0}.arc-name{font-weight:500;font-size:13px;color:#2D2520;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.arc-meta{font-size:11px;color:#C4B5A0;margin-top:2px}
 .do-empty{text-align:center;padding:40px 24px;color:#C4B5A0}.do-empty h4{font-family:'Playfair Display',serif;font-size:15px;color:#8B7355;margin-bottom:4px}.do-empty p{font-size:12px}
 .do-mob-tog{display:none;background:none;border:none;cursor:pointer;color:#4A3F35;padding:6px}
+.do-mob-list{display:none;flex-direction:column;padding:0}
+.do-mob-card{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid rgba(232,223,209,.4);cursor:pointer;transition:background .15s}
+.do-mob-card:hover{background:rgba(232,223,209,.15)}
+.do-mob-card:last-child{border-bottom:none}
+.do-mob-card-info{flex:1;min-width:0}
+.do-mob-card-name{font-weight:500;font-size:14px;color:#2D2520}
+.do-mob-card-sub{font-size:12px;color:#8B7355;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.do-mob-card-meta{display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap}
+.do-mob-card-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
 @media(max-width:1100px){.do-stats{grid-template-columns:repeat(2,1fr)}.do-ficha{width:100%}.ficha-grid{grid-template-columns:1fr}}
 @media(max-width:768px){
 .do-side{transform:translateX(-100%)}.do-side.open{transform:translateX(0)}.do-main{margin-left:0}.do-stats{grid-template-columns:1fr}.do-top{padding:10px 14px}.do-page{padding:14px}.do-search{width:100%;order:3}.do-mob-tog{display:flex !important}.do-ficha{width:100%}
@@ -478,16 +498,9 @@ table{width:100%;border-collapse:collapse}thead th{padding:10px 18px;text-align:
 .do-top-act .do-btn{font-size:12px;padding:7px 12px}
 .ficha-tabs{gap:0}.ficha-tab{padding:10px 12px;font-size:11.5px}
 .ficha-hd{flex-wrap:wrap;gap:12px}
+.do-modal{width:95vw;max-width:520px}
+.do-modal-wide{width:95vw;max-width:680px}
 }
-.do-mob-list{display:none;flex-direction:column;padding:0}
-.do-mob-card{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid rgba(232,223,209,.4);cursor:pointer;transition:background .15s}
-.do-mob-card:hover{background:rgba(232,223,209,.15)}
-.do-mob-card:last-child{border-bottom:none}
-.do-mob-card-info{flex:1;min-width:0}
-.do-mob-card-name{font-weight:500;font-size:14px;color:#2D2520}
-.do-mob-card-sub{font-size:12px;color:#8B7355;margin-top:2px}
-.do-mob-card-meta{display:flex;gap:8px;margin-top:6px;align-items:center;flex-wrap:wrap}
-.do-mob-card-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
 @keyframes doFade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@keyframes doFadeIn{from{opacity:0}to{opacity:1}}@keyframes doSlide{from{transform:translateX(100%)}to{transform:translateX(0)}}@keyframes doModalIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#E8DFD1;border-radius:3px}::-webkit-scrollbar-thumb:hover{background:#C4B5A0}
 `;
