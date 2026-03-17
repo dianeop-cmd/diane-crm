@@ -1270,13 +1270,13 @@ export default function DianeOpticasCRM() {
 
           {/* ── SEGUIMIENTOS ── */}
           {view==="seguimientos"&&<div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div style={{fontSize:13,color:"#8B7355"}}>Contactos pendientes con pacientes</div>
-              <button className="do-btn do-btn-pri" onClick={()=>setShowSegM({})}>{IC.plus} Nuevo</button>
-            </div>
             <div className="do-tbl">
-              <div className="do-tbl-hd"><h3>Seguimientos ({filtS.length})</h3>
-                <div className="do-filters">{["Todos","Pendiente","Programado","Completado"].map(f=><Chip key={f} label={f} active={sF===f} onClick={()=>setSF(f)}/>)}</div>
+              <div className="do-tbl-hd">
+                <h3>Seguimientos ({filtS.length})</h3>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                  <div className="do-filters">{["Todos","Pendiente","Programado","Completado"].map(f=><Chip key={f} label={f} active={sF===f} onClick={()=>setSF(f)}/>)}</div>
+                  <button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowSegM({})}>{IC.plus} Nuevo</button>
+                </div>
               </div>
               {/* Desktop table */}
               <table><thead><tr><th>Paciente</th><th>Tipo</th><th>Acción</th><th>Fecha</th><th>Estado</th><th></th></tr></thead>
@@ -1404,7 +1404,10 @@ export default function DianeOpticasCRM() {
 
           {/* ── ARCHIVOS ── */}
           {view==="archivos"&&<div className="do-tbl">
-            <div className="do-tbl-hd"><h3>Archivos ({archivos.length})</h3><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowUpload("")}>{IC.up} Subir</button></div>
+            <div className="do-tbl-hd">
+              <h3>Archivos ({archivos.length})</h3>
+              <button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowUpload("")}>{IC.up} Subir archivo</button>
+            </div>
             {/* Mobile cards */}
             <div className="mob-list">{archivos.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map((a,i)=>{
               const p=pacs.find(x=>x.id===a.pacienteId);
@@ -1473,11 +1476,12 @@ export default function DianeOpticasCRM() {
 
     {/* FAB accion rapida */}
     <button className="do-fab" onClick={()=>{
-      if(view==="pacientes")     setShowPacM({});
-      else if(view==="citas")    setShowCitaM({});
-      else if(view==="ventas")   setShowVentaM({});
+      if(view==="pacientes")      setShowPacM({});
+      else if(view==="citas")     setShowCitaM({});
+      else if(view==="ventas")    setShowVentaM({});
       else if(view==="expedientes") setShowExpM({pacienteId:""});
       else if(view==="seguimientos") setShowSegM({});
+      else if(view==="archivos")  setShowUpload("");
       else setShowCitaM({});
     }}>+</button>
 
