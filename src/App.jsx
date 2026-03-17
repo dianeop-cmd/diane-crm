@@ -890,7 +890,73 @@ function UploadModal({onClose,pacienteId,expedienteIdInicial,pacs,exps,role,onUp
       setPreview(null);
     }
   };
-  const handleUpload=async()=>{if(!file||!f.pacienteId){setError("Selecciona paciente y archivo");return;}setUploading(true);setError("");try{const reader=new FileReader();reader.onload=async(e)=>{const base64=e.target.result.split(",")[1];const archivoId=uid("A");const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"upload",archivoId,pacienteId:f.pacienteId,expedienteId:f.expedienteId,categoria:f.categoria,fileName:file.name,mimeType:file.type,fileData:base64,subidoPor:role})});const data=await res.json();if(data.success){onUploaded({id:archivoId,pacienteId:f.pacienteId,expedienteId:f.expedienteId,nombre:file.name,tipo:file.type.startsWith("image/")?"Imagen":"PDF",categoria:f.categoria,fecha:today(),url:data.fileUrl,tamano:data.tamano,subidoPor:role});}else{setError(data.error||"Error al subir");setUploading(false);}};reader.readAsDataURL(file);}catch(err){setError(err.toString());setUploading(false);}};
+  const handleUpload=async()=>{
+    if(!file||!f.pacienteId){setError("Selecciona paciente y archivo");return;}
+    setUploading(true);setError("");
+    try{
+      const toBase64 = (f) => new Promise((res,rej)=>{
+        const r=new FileReader();
+        r.onload=e=>res(e.target.result.split(",")[1]);
+        r.onerror=rej;
+        r.readAsDataURL(f);
+      });
+      const base64 = await toBase64(file);
+      const archivoId = uid("A");
+      const isPDF = file.type==="application/pdf";
+      // Timeout más largo para PDFs (60s) vs imágenes comprimidas (30s)
+      const controller = new AbortController();
+      const timeout = setTimeout(()=>controller.abort(), isPDF ? 90000 : 45000);
+      let res;
+      try {
+        res = await fetch(API_URL,{
+          method:"POST",
+          signal: controller.signal,
+          body:JSON.stringify({
+            action:"upload",archivoId,
+            pacienteId:f.pacienteId,
+            expedienteId:f.expedienteId,
+            categoria:f.categoria,
+            fileName:file.name,
+            mimeType:file.type,
+            fileData:base64,
+            subidoPor:role
+          })
+        });
+        clearTimeout(timeout);
+      } catch(fetchErr) {
+        clearTimeout(timeout);
+        if(fetchErr.name==="AbortError"){
+          setError("Tiempo de espera agotado. El archivo puede ser muy grande. Intenta con uno más pequeño.");
+        } else {
+          setError("Error de conexión: "+fetchErr.message);
+        }
+        setUploading(false);
+        return;
+      }
+      const data = await res.json();
+      if(data.success){
+        onUploaded({
+          id:archivoId,
+          pacienteId:f.pacienteId,
+          expedienteId:f.expedienteId,
+          nombre:file.name,
+          tipo:file.type.startsWith("image/")?"Imagen":"PDF",
+          categoria:f.categoria,
+          fecha:today(),
+          url:data.fileUrl,
+          tamano:data.tamano||Math.round(file.size/1024)+" KB",
+          subidoPor:role
+        });
+        // onUploaded cierra el modal y dispara el toast desde el padre
+      } else {
+        setError(data.error||"Error al subir el archivo. Intenta de nuevo.");
+        setUploading(false);
+      }
+    } catch(err){
+      setError("Error inesperado: "+err.message);
+      setUploading(false);
+    }
+  };
   return <Modal title="Subir Archivo" onClose={onClose} footer={<><button className="do-btn do-btn-out" onClick={onClose}>Cancelar</button><button className="do-btn do-btn-pri" onClick={handleUpload} disabled={uploading||!file}>{uploading?"Subiendo...":"Subir Archivo"}</button></>}>
     {!pacienteId&&<div className="do-fg"><label className="do-fl">Paciente *</label><select className="do-fi" value={f.pacienteId} onChange={ev=>sf({...f,pacienteId:ev.target.value})}><option value="">Seleccionar...</option>{pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>}
     <div className="do-fg"><label className="do-fl">Categoria</label><select className="do-fi" value={f.categoria} onChange={ev=>sf({...f,categoria:ev.target.value})}><option>General</option><option>Retinografia</option><option>Paquimetria</option><option>Receta</option><option>Convenio</option><option>Foto clinica</option><option>Campimetria</option><option>OCT</option><option>Otro</option></select></div>
@@ -904,7 +970,15 @@ function UploadModal({onClose,pacienteId,expedienteIdInicial,pacs,exps,role,onUp
     <div className="do-fg"><label className="do-fl">Archivo *</label><div style={{border:"2px dashed #E8DFD1",borderRadius:10,padding:24,textAlign:"center",cursor:"pointer",background:file?"#E8F5F2":"#FDFBF8"}} onClick={()=>document.getElementById("file-input").click()}><input id="file-input" type="file" accept="image/*,.pdf" style={{display:"none"}} onChange={handleFile}/>{file?<div><div style={{fontSize:14,fontWeight:500}}>{file.name}</div><div style={{fontSize:12,color:"#8B7355",marginTop:4}}>{(file.size/1024).toFixed(0)} KB</div></div>:<div><div style={{fontSize:32,marginBottom:8}}>📎</div><div style={{fontSize:14,color:"#8B7355"}}>Clic para seleccionar foto o PDF</div><div style={{fontSize:12,color:"#C4B5A0",marginTop:4}}>Max 10 MB</div></div>}</div></div>
     {preview&&<div className="do-fg"><label className="do-fl">Vista previa</label><img src={preview} style={{maxWidth:"100%",maxHeight:200,borderRadius:8,border:"1px solid #E8DFD1"}} alt="preview"/></div>}
     {error&&<div style={{color:"#D4726A",fontSize:13,padding:"8px 12px",background:"#FDF0EE",borderRadius:8,marginTop:8}}>{error}</div>}
-    {uploading&&<div style={{textAlign:"center",padding:16}}><div style={{width:24,height:24,border:"3px solid #E8DFD1",borderTopColor:"#2A7C6F",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto"}}/><div style={{fontSize:13,color:"#8B7355",marginTop:8}}>Subiendo...</div></div>}
+    {uploading&&<div style={{textAlign:"center",padding:16}}>
+      <div style={{width:28,height:28,border:"3px solid #E8DFD1",borderTopColor:"#2A7C6F",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto"}}/>
+      <div style={{fontSize:13,color:"#8B7355",marginTop:8,fontWeight:500}}>
+        {file&&file.type==="application/pdf"?"Subiendo PDF a Google Drive...":"Subiendo imagen..."}
+      </div>
+      <div style={{fontSize:11,color:"#C4B5A0",marginTop:4}}>
+        {file&&file.type==="application/pdf"?"Los PDFs pueden tardar hasta 30 segundos":"Imagen comprimida — tardará unos segundos"}
+      </div>
+    </div>}
   </Modal>;
 }
 
@@ -1545,7 +1619,7 @@ export default function DianeOpticasCRM() {
     {showExpM!==null&&<ExpModal pacienteId={showExpM.pacienteId} initial={showExpM.initial||null} pacs={pacs} onClose={()=>setShowExpM(null)} onSave={saveExp}/>}
     {showVentaM!==null&&<VentaModal initial={showVentaM.id?showVentaM:null} pacs={pacs} onClose={()=>setShowVentaM(null)} onSave={saveVenta}/>}
     {showSegM!==null&&<SegModal initial={showSegM.id?showSegM:null} pacs={pacs} onClose={()=>setShowSegM(null)} onSave={saveSeg}/>}
-    {showUpload!==null&&<UploadModal pacienteId={typeof showUpload==="object"?showUpload.pacienteId:showUpload} expedienteIdInicial={typeof showUpload==="object"?showUpload.expedienteId:""} pacs={pacs} exps={exps} role={role} onClose={()=>setShowUpload(null)} onUploaded={a=>{setArchivos([a,...archivos]);setShowUpload(null);toast("Archivo subido");}}/>}
+    {showUpload!==null&&<UploadModal pacienteId={typeof showUpload==="object"?showUpload.pacienteId:showUpload} expedienteIdInicial={typeof showUpload==="object"?showUpload.expedienteId:""} pacs={pacs} exps={exps} role={role} onClose={()=>setShowUpload(null)} onUploaded={a=>{setArchivos([a,...archivos]);setShowUpload(null);toast("✅ Archivo subido correctamente");}}/>}
     {confirm&&<ConfirmModal msg={confirm.msg} onYes={()=>{confirm.onYes();setConfirm(null);}} onNo={()=>setConfirm(null)}/>}
 
     <ToastContainer toasts={toasts}/>
