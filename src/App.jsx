@@ -938,10 +938,9 @@ export default function DianeOpticasCRM() {
       {/* Main */}
       <main className="do-main">
         <div className="do-top">
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
             <button className="do-mob-tog" onClick={()=>setMobNav(!mobNav)}>{IC.menu}</button>
-            <span className="do-top-title">{titles[view]}</span>
-            <span className="role-badge" style={{background:ROLES[role].color}}>{ROLES[role].label}</span>
+            <span className="do-top-title mob-hide-title">{titles[view]}</span>
           </div>
           <div className="do-top-act">
             <div className="do-search" style={{position:"relative"}}>
@@ -958,17 +957,6 @@ export default function DianeOpticasCRM() {
             {can(role,"ventas")&&<button className="do-btn do-btn-out" style={{borderColor:"#C49A3C",color:"#C49A3C"}} onClick={()=>setShowVentaM({})}>{IC.bag} Venta</button>}
             {can(role,"pacientes")&&<button className="do-btn do-btn-pri" onClick={()=>setShowPacM({})}>{IC.plus} Paciente</button>}
           </div>
-        </div>
-
-        {/* Barra de búsqueda dedicada en móvil */}
-        <div className="mob-search-bar">
-          {IC.srch}
-          <input placeholder="Buscar paciente, cita, venta..." value={search}
-            onChange={ev=>{setSearch(ev.target.value);if(ev.target.value.length>1)setShowGSearch(true);else setShowGSearch(false);}}
-            onFocus={()=>{if(search.length>1)setShowGSearch(true);}}
-            onBlur={()=>setTimeout(()=>setShowGSearch(false),180)}
-          />
-          {showGSearch&&search.length>1&&<GlobalSearch q={search} pacs={pacs} citas={citas} ventas={ventas} exps={exps} onSelect={(type,item)=>{setShowGSearch(false);setSearch("");if(type==="pac"){setSelPat(item);}else if(type==="cita"){const p=pacs.find(x=>x.id===item.pacienteId);p&&setSelPat(p);setView("citas");}else if(type==="venta"){const p=pacs.find(x=>x.id===item.pacienteId);p&&setSelPat(p);setView("ventas");}else if(type==="exp"){const p=pacs.find(x=>x.id===item.pacienteId);p&&setSelPat(p);}}}/>}
         </div>
 
         <div className="do-page">
@@ -1452,7 +1440,7 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
   .do-top-title{font-size:15px}
   .role-badge{display:none}
   .do-page{padding:10px 12px}
-  .mob-search-bar{display:flex !important}
+  /* mob-search-bar removed — search is now in topbar */
   .do-mob-tog{display:flex !important}
   .do-search{width:100%}
   .mob-sidebar-overlay{display:block}
@@ -1494,9 +1482,13 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
   .mob-bottomnav{display:flex !important}
   .do-fab{display:flex !important}
 
-  /* Ocultar todos los botones de acción en top bar — FAB y bottom nav los reemplazan */
+  /* En móvil ocultar botones — FAB los reemplazan */
   .do-top-act .do-btn{display:none}
-  .do-top-act .do-search{display:none}
+  /* Búsqueda siempre visible en topbar en móvil */
+  .do-top-act .do-search{width:auto;flex:1}
+  .do-search{width:160px}
+  .mob-hide-title{display:none}
+  .do-top{flex-wrap:nowrap;gap:8px}
 
   /* Rx grid más compacto */
   .rx-grid{font-size:11px}
