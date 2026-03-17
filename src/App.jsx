@@ -975,7 +975,9 @@ export default function DianeOpticasCRM() {
   // Citas
   const saveCita = async (f) => {
     const isEdit = !!f.id;
-    const row = isEdit ? f : {...f, id: uid("C")};
+    // Incluir email del paciente para invitación de Calendar
+    const pac = pacs.find(p=>p.id===f.pacienteId)||{};
+    const row = isEdit ? {...f, emailPaciente: pac.email||""} : {...f, id: uid("C"), emailPaciente: pac.email||""};
     if (isEdit) { setCitas(citas.map(c=>c.id===row.id?row:c)); toast("Cita actualizada"); updateInSheet("Citas",row.id,row); }
     else { setCitas([row,...citas]); toast("Cita agendada"); writeToSheet("Citas",row); }
     // Auto-actualizar paciente si cita se marca Completada
