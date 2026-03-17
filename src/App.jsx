@@ -63,7 +63,7 @@ async function fetchSheet(name) {
 }
 
 // ═══ GOOGLE APPS SCRIPT API ═══
-const API_URL = "https://script.google.com/macros/s/AKfycbz7c5_KmSwF8aZUjytmkx-OVmf1H8SD115fu7NXEa9bd6M-afWI3DoVYe84hq8Gttln/exec";
+const API_URL = "https://script.google.com/macros/library/d/14S4jjovIaeRinJ9TDUcwr3KrSIkgHAZakB1wqbR9UVuwZE2L9l4-RSAa/12";
 
 async function writeToSheet(sheet, row) {
   try {
