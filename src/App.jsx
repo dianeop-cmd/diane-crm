@@ -1272,11 +1272,11 @@ export default function DianeOpticasCRM() {
           {view==="seguimientos"&&<div>
             <div className="do-tbl">
               <div className="do-tbl-hd">
-                <h3>Seguimientos ({filtS.length})</h3>
-                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                  <div className="do-filters">{["Todos","Pendiente","Programado","Completado"].map(f=><Chip key={f} label={f} active={sF===f} onClick={()=>setSF(f)}/>)}</div>
-                  <button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowSegM({})}>{IC.plus} Nuevo</button>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%"}}>
+                  <h3>Seguimientos ({filtS.length})</h3>
+                  <button className="do-btn do-btn-pri" onClick={()=>setShowSegM({})}>{IC.plus} Nuevo</button>
                 </div>
+                <div className="do-filters" style={{width:"100%"}}>{["Todos","Pendiente","Programado","Completado"].map(f=><Chip key={f} label={f} active={sF===f} onClick={()=>setSF(f)}/>)}</div>
               </div>
               {/* Desktop table */}
               <table><thead><tr><th>Paciente</th><th>Tipo</th><th>Acción</th><th>Fecha</th><th>Estado</th><th></th></tr></thead>
@@ -1406,7 +1406,7 @@ export default function DianeOpticasCRM() {
           {view==="archivos"&&<div className="do-tbl">
             <div className="do-tbl-hd">
               <h3>Archivos ({archivos.length})</h3>
-              <button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowUpload("")}>{IC.up} Subir archivo</button>
+              <button className="do-btn do-btn-pri" onClick={()=>setShowUpload("")}>{IC.up} Subir archivo</button>
             </div>
             {/* Mobile cards */}
             <div className="mob-list">{archivos.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map((a,i)=>{
@@ -1775,8 +1775,10 @@ html{overflow-x:hidden;}
   /* Ocultar tablas, mostrar cards */
   .do-tbl table{display:none}
   .do-tbl .mob-list{display:flex !important}
-  .do-tbl-hd{padding:10px 14px}
-  .do-tbl-hd h3{font-size:14px}
+  .do-tbl-hd{padding:10px 14px;flex-wrap:wrap;gap:8px}
+  .do-tbl-hd h3{font-size:14px;flex:1;min-width:100px}
+  .do-tbl-hd>div{flex-wrap:wrap}
+  .do-tbl-hd .do-btn{font-size:12px !important;padding:7px 12px !important;min-height:36px}
 
   /* Ficha full screen en móvil */
   .do-ficha{width:100%;left:0;animation:doSlideUp .25s cubic-bezier(.4,0,.2,1)}
