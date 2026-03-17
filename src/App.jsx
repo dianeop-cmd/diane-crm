@@ -237,7 +237,7 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
   const [tab,setTab] = useState("resumen");
   const [expO,setExpO] = useState(null);
   const pc=citas.filter(c=>c.pacienteId===p.id), ps=segs.filter(s=>s.pacienteId===p.id), pv=ventas.filter(v=>v.pacienteId===p.id);
-  const pe=exps.filter(e=>e.pacienteId===p.id).sort((a,b)=>b.fecha.localeCompare(a.fecha)), pa=archivos.filter(a=>a.pacienteId===p.id);
+  const pe=exps.filter(e=>e.pacienteId===p.id).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")), pa=archivos.filter(a=>a.pacienteId===p.id);
   const tabs=[{key:"resumen",label:"Resumen",ok:true},{key:"citas",label:"Citas ("+pc.length+")",ok:true},{key:"ventas",label:"Ventas ("+pv.length+")",ok:can(role,"ventas")},{key:"seguimientos",label:"Seguimientos ("+ps.length+")",ok:can(role,"seguimientos")},{key:"expediente",label:"Expediente ("+pe.length+")",ok:can(role,"expediente")},{key:"archivos",label:"Archivos ("+pa.length+")",ok:can(role,"archivos")}].filter(t=>t.ok);
   return <>
     <div className="do-overlay" onClick={onClose}/>
@@ -278,8 +278,8 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
             </div>
           </div>}
         </div></div>}
-        {tab==="citas"&&<div>{pc.length>0?pc.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(c=><div key={c.id} className="list-row"><div><div style={{fontWeight:500,fontSize:14}}>{c.tipo}</div><div style={{fontSize:12,color:"#C4B5A0"}}>{fmtD(c.fecha)} - {c.hora}</div><div style={{fontSize:12,color:"#8B7355",marginTop:2}}>{c.notas}</div></div><Tag type={c.estado}/></div>):<div className="do-empty"><h4>Sin citas</h4></div>}</div>}
-        {tab==="ventas"&&<div>{pv.length>0?pv.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(v=><div key={v.id} className="list-row"><div><div style={{fontWeight:500,fontSize:14}}>{v.concepto}</div><div style={{fontSize:12,color:"#C4B5A0"}}>{fmtD(v.fecha)} - {v.metodo}</div></div><div style={{textAlign:"right"}}><div style={{fontWeight:600,fontSize:15,color:"#2D2520"}}>{"$"+(v.monto||0).toLocaleString()}</div><Tag type={v.estado}/></div></div>):<div className="do-empty"><h4>Sin ventas</h4></div>}</div>}
+        {tab==="citas"&&<div>{pc.length>0?pc.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(c=><div key={c.id} className="list-row"><div><div style={{fontWeight:500,fontSize:14}}>{c.tipo}</div><div style={{fontSize:12,color:"#C4B5A0"}}>{fmtD(c.fecha)} - {c.hora}</div><div style={{fontSize:12,color:"#8B7355",marginTop:2}}>{c.notas}</div></div><Tag type={c.estado}/></div>):<div className="do-empty"><h4>Sin citas</h4></div>}</div>}
+        {tab==="ventas"&&<div>{pv.length>0?pv.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(v=><div key={v.id} className="list-row"><div><div style={{fontWeight:500,fontSize:14}}>{v.concepto}</div><div style={{fontSize:12,color:"#C4B5A0"}}>{fmtD(v.fecha)} - {v.metodo}</div></div><div style={{textAlign:"right"}}><div style={{fontWeight:600,fontSize:15,color:"#2D2520"}}>{"$"+(v.monto||0).toLocaleString()}</div><Tag type={v.estado}/></div></div>):<div className="do-empty"><h4>Sin ventas</h4></div>}</div>}
         {tab==="seguimientos"&&<div>{ps.length>0?ps.map(s=><div key={s.id} className="list-row"><div><div style={{display:"flex",gap:8,alignItems:"center"}}><Tag type={s.tipo}/><span style={{fontWeight:500,fontSize:13}}>{fmtD(s.fechaSeg)}</span></div><div style={{fontSize:13,color:"#4A3F35",marginTop:6}}>{s.mensaje}</div></div><Tag type={s.estado}/></div>):<div className="do-empty"><h4>Sin seguimientos</h4></div>}</div>}
         {tab==="expediente"&&<div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
@@ -585,15 +585,15 @@ export default function DianeOpticasCRM() {
 
   // ── Derived ────────────────────────────────────────────────
   const segPend    = segs.filter(s=>s.estado==="Pendiente").length;
-  const citasSem   = citas.filter(c=>{const d=dUntil(c.fecha);return d>=0&&d<=7;}).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const citasSem   = citas.filter(c=>{const d=dUntil(c.fecha);return d>=0&&d<=7;}).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
   const citasHoy   = citas.filter(c=>c.fecha===today());
   const segsPend   = segs.filter(s=>s.estado==="Pendiente");
   const sinCita    = pacs.filter(p=>!p.proximaCita&&dUntil(p.ultimaVisita)<-90);
   const alerts     = [...segsPend.filter(s=>dUntil(s.fechaSeg)<=2).map(s=>({t:"urgent",title:"Seguimiento: "+s.paciente,sub:s.mensaje})),...sinCita.map(p=>({t:"reminder",title:p.nombre+" - "+Math.abs(dUntil(p.ultimaVisita))+"d sin visita",sub:"Ultima: "+fmtD(p.ultimaVisita)}))];
   const filtP      = pacs.filter(p=>(pF==="Todos"||p.tipo===pF)&&(!search||p.nombre.toLowerCase().includes(search.toLowerCase())||p.telefono.includes(search)));
-  const filtC      = citas.filter(c=>cF==="Todas"||c.estado===cF).sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  const filtS      = segs.filter(s=>sF==="Todos"||s.estado===sF).sort((a,b)=>a.fechaSeg.localeCompare(b.fechaSeg));
-  const filtV      = ventas.filter(v=>vF==="Todas"||v.metodo===vF).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const filtC      = citas.filter(c=>cF==="Todas"||c.estado===cF).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
+  const filtS      = segs.filter(s=>sF==="Todos"||s.estado===sF).sort((a,b)=>(a.fechaSeg||"").localeCompare(b.fechaSeg||""));
+  const filtV      = ventas.filter(v=>vF==="Todas"||v.metodo===vF).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
   const ventasMes  = ventas.filter(v=>v.fecha&&v.fecha.startsWith(today().slice(0,7)));
   const totalMes   = ventasMes.reduce((s,v)=>s+(parseFloat(v.monto)||0),0);
 
@@ -756,7 +756,7 @@ export default function DianeOpticasCRM() {
           {view==="expedientes"&&<div className="do-tbl">
             <div className="do-tbl-hd"><h3>Expedientes ({exps.length})</h3><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowExpM({pacienteId:""})}>{IC.plus} Nueva Consulta</button></div>
             <table><thead><tr><th>Paciente</th><th>Fecha</th><th>Motivo</th><th>Diagnostico</th><th>Prox.</th><th></th></tr></thead>
-            <tbody>{exps.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map((ex,i)=>{const p=pacs.find(x=>x.id===ex.pacienteId);const isA=ex.diagnostico&&ex.diagnostico.includes("SOSPECHA");return <tr key={ex.id} onClick={()=>p&&setSelPat(p)}>
+            <tbody>{exps.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map((ex,i)=>{const p=pacs.find(x=>x.id===ex.pacienteId);const isA=ex.diagnostico&&ex.diagnostico.includes("SOSPECHA");return <tr key={ex.id} onClick={()=>p&&setSelPat(p)}>
               <td><div className="do-pcell"><Av name={p?p.nombre:"?"} i={i}/><span className="do-pname">{p?p.nombre:"?"}</span></div></td>
               <td>{fmtD(ex.fecha)}</td>
               <td style={{fontSize:13}}>{ex.motivo}</td>
@@ -820,7 +820,7 @@ export default function DianeOpticasCRM() {
           {view==="archivos"&&<div className="do-tbl">
             <div className="do-tbl-hd"><h3>Archivos ({archivos.length})</h3><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowUpload("")}>{IC.up} Subir</button></div>
             <table><thead><tr><th>Archivo</th><th>Paciente</th><th>Categoria</th><th>Fecha</th><th>Tamano</th><th></th></tr></thead>
-            <tbody>{archivos.sort((a,b)=>b.fecha.localeCompare(a.fecha)).map((a,i)=>{const p=pacs.find(x=>x.id===a.pacienteId);return <tr key={a.id}>
+            <tbody>{archivos.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map((a,i)=>{const p=pacs.find(x=>x.id===a.pacienteId);return <tr key={a.id}>
               <td><div className="do-pcell"><span style={{fontSize:20}}>{a.tipo==="Imagen"?"🖼":"📄"}</span><div><div className="do-pname">{a.nombre}</div><div className="do-pdetail">{a.expedienteId?"Exp: "+a.expedienteId:"General"}</div></div></div></td>
               <td style={{cursor:"pointer",color:"#2A7C6F"}} onClick={()=>p&&setSelPat(p)}>{p?p.nombre:"?"}</td>
               <td><Tag type={a.categoria}/></td><td>{fmtD(a.fecha)}</td>
