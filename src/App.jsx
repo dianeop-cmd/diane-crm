@@ -700,15 +700,49 @@ function CitaModal({initial,pacs,onClose,onSave}) {
 // ── Seguimiento form ─────────────────────────────────────────────────────────
 function SegModal({initial,pacs,onClose,onSave}) {
   const isEdit = !!initial;
-  const [f,sf] = useState(initial ? {...initial} : {pacienteId:"",tipo:"Comercial",fechaSeg:today(),estado:"Pendiente",mensaje:""});
+  const [f,sf] = useState(initial ? {...initial} : {pacienteId:"",tipo:"Recordatorio",fechaSeg:today(),estado:"Pendiente",mensaje:""});
+
+  // Auto-generar mensaje según tipo y paciente
+  const autoMsg = (tipo, pacId) => {
+    const pac = pacs.find(p=>p.id===pacId);
+    const nombre = pac ? pac.nombre.split(" ")[0] : "paciente";
+    const msgs = {
+      "Recordatorio": `Hola ${nombre} 👋, le recordamos que tiene una cita próxima en Diane Ópticas. ¿Le confirmamos?`,
+      "Comercial":    `Hola ${nombre} 👋, en Diane Ópticas tenemos novedades que podrían interesarle. ¿Tiene un momento?`,
+      "Salud":        `Hola ${nombre} 👋, desde Diane Ópticas queremos saber cómo se encuentra con sus lentes. ¿Todo bien?`,
+      "Postventa":    `Hola ${nombre} 👋, esperamos que esté disfrutando sus lentes. Si tiene alguna duda o ajuste, con gusto le atendemos.`,
+    };
+    return msgs[tipo] || "";
+  };
+
   return <Modal title={isEdit?"Editar Seguimiento":"Nuevo Seguimiento"} onClose={onClose} footer={
     <><button className="do-btn do-btn-out" onClick={onClose}>Cancelar</button>
     <button className="do-btn do-btn-pri" onClick={()=>{if(!f.pacienteId)return;const p=pacs.find(x=>x.id===f.pacienteId);onSave({...f,paciente:p?p.nombre:""});onClose();}}>{isEdit?"Actualizar":"Guardar"}</button></>
   }>
-    <div className="do-fg"><label className="do-fl">Paciente *</label><select className="do-fi" value={f.pacienteId} onChange={ev=>sf({...f,pacienteId:ev.target.value})}><option value="">Seleccionar...</option>{pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-    <div className="do-fr"><div className="do-fg"><label className="do-fl">Tipo</label><select className="do-fi" value={f.tipo} onChange={ev=>sf({...f,tipo:ev.target.value})}><option>Comercial</option><option>Salud</option><option>Recordatorio</option><option>Postventa</option></select></div><div className="do-fg"><label className="do-fl">Fecha</label><input className="do-fi" type="date" value={f.fechaSeg} onChange={ev=>sf({...f,fechaSeg:ev.target.value})}/></div></div>
-    <div className="do-fg"><label className="do-fl">Estado</label><select className="do-fi" value={f.estado} onChange={ev=>sf({...f,estado:ev.target.value})}><option>Pendiente</option><option>Programado</option><option>Completado</option></select></div>
-    <div className="do-fg"><label className="do-fl">Mensaje / Accion</label><textarea className="do-fi do-ta" value={f.mensaje} onChange={ev=>sf({...f,mensaje:ev.target.value})}/></div>
+    <div className="do-fg"><label className="do-fl">Paciente *</label>
+      <select className="do-fi" value={f.pacienteId} onChange={ev=>sf({...f,pacienteId:ev.target.value,mensaje:f.mensaje||autoMsg(f.tipo,ev.target.value)})}>
+        <option value="">Seleccionar...</option>{pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
+      </select>
+    </div>
+    <div className="do-fr">
+      <div className="do-fg"><label className="do-fl">Tipo</label>
+        <select className="do-fi" value={f.tipo} onChange={ev=>sf({...f,tipo:ev.target.value,mensaje:autoMsg(ev.target.value,f.pacienteId)})}>
+          <option>Recordatorio</option><option>Salud</option><option>Comercial</option><option>Postventa</option>
+        </select>
+      </div>
+      <div className="do-fg"><label className="do-fl">Fecha</label>
+        <input className="do-fi" type="date" value={f.fechaSeg} onChange={ev=>sf({...f,fechaSeg:ev.target.value})}/>
+      </div>
+    </div>
+    <div className="do-fg"><label className="do-fl">Estado</label>
+      <select className="do-fi" value={f.estado} onChange={ev=>sf({...f,estado:ev.target.value})}>
+        <option>Pendiente</option><option>Programado</option><option>Completado</option>
+      </select>
+    </div>
+    <div className="do-fg"><label className="do-fl">Mensaje para WhatsApp</label>
+      <textarea className="do-fi do-ta" value={f.mensaje} onChange={ev=>sf({...f,mensaje:ev.target.value})} placeholder="Se genera automáticamente al seleccionar tipo y paciente..."/>
+      <div style={{fontSize:11,color:"#8B7355",marginTop:4}}>💡 Se genera automáticamente — puedes editarlo antes de enviar</div>
+    </div>
   </Modal>;
 }
 
@@ -1024,15 +1058,34 @@ export default function DianeOpticasCRM() {
           {/* ── DASHBOARD ── */}
           {view==="dashboard"&&<div>
             <div className="do-stats">
-              <div className="do-stat s1"><div className="do-stat-label">Pacientes</div><div className="do-stat-val">{pacs.length}</div><div className="do-stat-sub">Registro total</div></div>
-              <div className="do-stat s2"><div className="do-stat-label">Citas Semana</div><div className="do-stat-val">{citasSem.length}</div><div className="do-stat-sub">{citasHoy.length} hoy</div></div>
-              <div className="do-stat s3"><div className="do-stat-label">Seguimientos</div><div className="do-stat-val">{segsPend.length}</div><div className="do-stat-sub">Pendientes</div></div>
-              <div className="do-stat s4"><div className="do-stat-label">Ventas mes</div><div className="do-stat-val">{"$"+totalMes.toLocaleString()}</div><div className="do-stat-sub">{ventasMes.length} transacciones</div></div>
+              <div className="do-stat s1" style={{cursor:"pointer"}} onClick={()=>setView("pacientes")}><div className="do-stat-label">Pacientes</div><div className="do-stat-val">{pacs.length}</div><div className="do-stat-sub">Ver todos →</div></div>
+              <div className="do-stat s2" style={{cursor:"pointer"}} onClick={()=>setView("citas")}><div className="do-stat-label">Citas Semana</div><div className="do-stat-val">{citasSem.length}</div><div className="do-stat-sub">{citasHoy.length} hoy →</div></div>
+              <div className="do-stat s3" style={{cursor:"pointer"}} onClick={()=>setView("seguimientos")}><div className="do-stat-label">Seguimientos</div><div className="do-stat-val">{segsPend.length}</div><div className="do-stat-sub">Pendientes →</div></div>
+              <div className="do-stat s4" style={{cursor:"pointer"}} onClick={()=>setView("ventas")}><div className="do-stat-label">Ventas mes</div><div className="do-stat-val">{"$"+totalMes.toLocaleString()}</div><div className="do-stat-sub">{ventasMes.length} ventas →</div></div>
             </div>
             {alerts.length>0&&<div style={{marginBottom:24}}><h3 className="sec-title">Atencion Requerida</h3>{alerts.map((a,i)=><div key={i} className={"do-alert "+a.t}><div className={"do-alert-ic "+(a.t==="urgent"?"u":"r")}>{IC.alrt}</div><div className="do-alert-c"><div className="do-alert-t">{a.title}</div><div className="do-alert-s">{a.sub}</div></div></div>)}</div>}
             <div className="do-tbl">
-              <div className="do-tbl-hd"><h3>Proximas Citas</h3></div>
-              {citasSem.length>0?<><table><thead><tr><th>Paciente</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th></th></tr></thead><tbody>{citasSem.map((c,i)=>{const p=pacs.find(x=>x.id===c.pacienteId);return <tr key={c.id} onClick={()=>p&&setSelPat(p)}><td><div className="do-pcell"><Av name={c.paciente} i={i}/><span className="do-pname">{c.paciente}</span></div></td><td>{fmtD(c.fecha)}</td><td>{c.hora}</td><td>{c.tipo}</td><td><Tag type={c.estado}/></td><td>{p&&<WA phone={p.telefono} msg={citaMsg(p,c)}/>}</td></tr>;})}</tbody></table></>:<div className="do-empty"><h4>Sin citas esta semana</h4></div>}
+              <div className="do-tbl-hd"><h3>Proximas Citas</h3><button className="do-btn do-btn-out" style={{fontSize:12}} onClick={()=>setView("citas")}>Ver agenda →</button></div>
+              {citasSem.length>0?<>
+                <table><thead><tr><th>Paciente</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th></th></tr></thead>
+                <tbody>{citasSem.map((c,i)=>{const p=pacs.find(x=>x.id===c.pacienteId);return <tr key={c.id} onClick={()=>p&&setSelPat(p)}>
+                  <td><div className="do-pcell"><Av name={c.paciente} i={i}/><span className="do-pname">{c.paciente}</span></div></td>
+                  <td>{fmtD(c.fecha)}</td><td>{c.hora}</td><td>{c.tipo}</td><td><Tag type={c.estado}/></td>
+                  <td>{p&&<WA phone={p.telefono} msg={citaMsg(p,c)}/>}</td>
+                </tr>;})}</tbody></table>
+                <div className="mob-list">{citasSem.map((c,i)=>{const p=pacs.find(x=>x.id===c.pacienteId);return <div key={c.id} className="mob-card" onClick={()=>p&&setSelPat(p)}>
+                  <Av name={c.paciente} i={i}/>
+                  <div className="mob-card-body">
+                    <div className="mob-card-name">{c.paciente}</div>
+                    <div className="mob-card-sub">{fmtD(c.fecha)} · {c.hora} · {c.tipo}</div>
+                    <div className="mob-card-meta"><Tag type={c.estado}/></div>
+                  </div>
+                  <div className="mob-card-right">
+                    {p&&<WA phone={p.telefono} msg={citaMsg(p,c)}/>}
+                  </div>
+                </div>;})}
+                </div>
+              </>:<div className="do-empty"><h4>Sin citas esta semana</h4></div>}
             </div>
           </div>}
 
@@ -1103,17 +1156,21 @@ export default function DianeOpticasCRM() {
 
           {/* ── SEGUIMIENTOS ── */}
           {view==="seguimientos"&&<div>
-            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
-              <button className="do-btn do-btn-pri" onClick={()=>setShowSegM({})}>{IC.plus} Nuevo Seguimiento</button>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontSize:13,color:"#8B7355"}}>Contactos pendientes con pacientes</div>
+              <button className="do-btn do-btn-pri" onClick={()=>setShowSegM({})}>{IC.plus} Nuevo</button>
             </div>
             <div className="do-tbl">
-              <div className="do-tbl-hd"><h3>Seguimientos ({filtS.length})</h3><div className="do-filters">{["Todos","Pendiente","Programado"].map(f=><Chip key={f} label={f} active={sF===f} onClick={()=>setSF(f)}/>)}</div></div>
-              <table><thead><tr><th>Paciente</th><th>Tipo</th><th>Mensaje</th><th>Fecha</th><th>Estado</th><th></th></tr></thead>
+              <div className="do-tbl-hd"><h3>Seguimientos ({filtS.length})</h3>
+                <div className="do-filters">{["Todos","Pendiente","Programado","Completado"].map(f=><Chip key={f} label={f} active={sF===f} onClick={()=>setSF(f)}/>)}</div>
+              </div>
+              {/* Desktop table */}
+              <table><thead><tr><th>Paciente</th><th>Tipo</th><th>Acción</th><th>Fecha</th><th>Estado</th><th></th></tr></thead>
               <tbody>{filtS.map((s,i)=>{const p=pacs.find(x=>x.id===s.pacienteId);const urg=s.estado==="Pendiente"&&dUntil(s.fechaSeg)<=3;return <tr key={s.id} style={{background:urg?"#FDF0EE":undefined}}>
-                <td><div className="do-pcell"><Av name={s.paciente} i={i}/><span className="do-pname">{s.paciente}</span></div></td>
+                <td><div className="do-pcell"><Av name={s.paciente} i={i}/><div><div className="do-pname">{s.paciente}</div><div className="do-pdetail">{p?.telefono||""}</div></div></div></td>
                 <td><Tag type={s.tipo}/></td>
-                <td style={{fontSize:12.5,maxWidth:240}}>{s.mensaje}</td>
-                <td style={{color:urg?"#D4726A":undefined,fontWeight:urg?600:400}}>{fmtD(s.fechaSeg)}{urg&&<span style={{fontSize:10,display:"block",color:"#D4726A"}}>Urgente</span>}</td>
+                <td style={{fontSize:12.5,maxWidth:220}}>{s.mensaje}</td>
+                <td style={{color:urg?"#D4726A":"#4A3F35",fontWeight:urg?600:400}}>{fmtD(s.fechaSeg)}{urg&&<span style={{fontSize:10,display:"block",color:"#D4726A"}}>¡Hoy!</span>}</td>
                 <td><Tag type={s.estado}/></td>
                 <td><div style={{display:"flex",gap:6}}>
                   {p&&<WA phone={p.telefono} msg={s.mensaje||"Hola "+p.nombre.split(" ")[0]+", le contactamos de Diane Ópticas."}/>}
@@ -1122,6 +1179,26 @@ export default function DianeOpticasCRM() {
                 </div></td>
               </tr>;})}
               </tbody></table>
+              {/* Mobile cards */}
+              <div className="mob-list">{filtS.map((s,i)=>{const p=pacs.find(x=>x.id===s.pacienteId);const urg=s.estado==="Pendiente"&&dUntil(s.fechaSeg)<=3;return <div key={s.id} className="mob-card" style={{background:urg?"#FDF0EE":"#fff",borderLeft:urg?"3px solid #D4726A":"none"}}>
+                <Av name={s.paciente} i={i}/>
+                <div className="mob-card-body">
+                  <div className="mob-card-name">{s.paciente}</div>
+                  <div className="mob-card-sub">{s.mensaje}</div>
+                  <div className="mob-card-meta">
+                    <Tag type={s.tipo}/>
+                    <Tag type={s.estado}/>
+                    <span style={{fontSize:11,color:urg?"#D4726A":"#8B7355",fontWeight:urg?700:400}}>{fmtD(s.fechaSeg)}{urg?" ⚡":""}</span>
+                  </div>
+                  <div className="mob-card-actions">
+                    {p&&<WA phone={p.telefono} msg={s.mensaje||"Hola "+p.nombre.split(" ")[0]+", le contactamos de Diane Ópticas."}/>}
+                    {can(role,"seguimientos")&&<button className="do-btn-ic" onClick={e=>{e.stopPropagation();setShowSegM(s)}}>{IC.pen}</button>}
+                    {can(role,"seguimientos")&&<button className="do-btn-ic do-btn-ic-d" onClick={e=>{e.stopPropagation();deleteSeg(s.id)}}>{IC.trash}</button>}
+                  </div>
+                </div>
+              </div>;})}
+              </div>
+              {filtS.length===0&&<div className="do-empty"><h4>Sin seguimientos</h4><p>Registra un seguimiento para dar continuidad a tus pacientes</p></div>}
             </div>
           </div>}
 
