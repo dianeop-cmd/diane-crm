@@ -232,7 +232,7 @@ function Modal({title,onClose,children,footer,wide}) {
 }
 
 // ── Expediente card ──────────────────────────────────────────────────────────
-function ExpedienteCard({ex,archivos,expanded,onToggle,onEdit,onDelete,role,paciente}) {
+function ExpedienteCard({ex,archivos,expanded,onToggle,onEdit,onDelete,role,paciente,onUploadToExp}) {
   const exA = archivos.filter(a=>(ex.archivosIds||[]).includes(a.id));
   const isA = ex.diagnostico && ex.diagnostico.includes("SOSPECHA");
   return <div className={"exp-card"+(expanded?" exp-open":"")}>
@@ -240,6 +240,7 @@ function ExpedienteCard({ex,archivos,expanded,onToggle,onEdit,onDelete,role,paci
       <div><div className="exp-card-date">{fmtD(ex.fecha)}</div><div className="exp-card-motivo">{ex.motivo}</div><div className="exp-card-opto">{ex.optometrista}</div></div>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         {isA&&<span className="do-tag do-tag-pendiente" style={{fontSize:10}}>Alerta</span>}
+        <button className="do-btn-ic" title="Subir archivo a este expediente" onClick={e=>{e.stopPropagation();onUploadToExp&&onUploadToExp(ex.id);}}>{IC.up}</button>
         <button className="do-btn-ic" title="Generar receta para paciente" style={{background:"#E8F5F2",borderColor:"#2A7C6F",color:"#2A7C6F"}} onClick={e=>{e.stopPropagation();generarReceta(ex,paciente);}}>{IC.receta}</button>
         <button className="do-btn-ic" title="Imprimir historia clínica" onClick={e=>{e.stopPropagation();printReceta(ex,paciente);}}>{IC.print}</button>
         {can(role,"expediente")&&<button className="do-btn-ic" title="Editar" onClick={e=>{e.stopPropagation();onEdit(ex)}}>{IC.pen}</button>}
@@ -628,12 +629,12 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
             <div style={{fontSize:12,color:"#8B7355"}}>{pe.length} consultas</div>
             <button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>onAddExp(p.id)}>{IC.plus} Nueva Consulta</button>
           </div>
-          {pe.length>0?pe.map(ex=><ExpedienteCard key={ex.id} ex={ex} archivos={archivos} expanded={expO===ex.id} onToggle={()=>setExpO(expO===ex.id?null:ex.id)} onEdit={onEditExp} onDelete={onDeleteExp} role={role} paciente={p}/>):<div className="do-empty"><h4>Sin expedientes</h4><p>Registra la primera consulta</p></div>}
+          {pe.length>0?pe.map(ex=><ExpedienteCard key={ex.id} ex={ex} archivos={archivos} expanded={expO===ex.id} onToggle={()=>setExpO(expO===ex.id?null:ex.id)} onEdit={onEditExp} onDelete={onDeleteExp} role={role} paciente={p} onUploadToExp={exId=>onUpload({pacienteId:p.id,expedienteId:exId})}/>):<div className="do-empty"><h4>Sin expedientes</h4><p>Registra la primera consulta</p></div>}
         </div>}
         {tab==="archivos"&&<div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
             <div style={{fontSize:12,color:"#8B7355"}}>{pa.length} archivos</div>
-            <button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>onUpload(p.id)}>{IC.up} Subir</button>
+            <button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>onUpload({pacienteId:p.id,expedienteId:""})}>{IC.up} Subir</button>
           </div>
           {pa.length>0?pa.map(a=><div key={a.id} className="arc-row"><div className="arc-icon">{a.tipo==="Imagen"?"🖼":"📄"}</div><div className="arc-info"><div className="arc-name">{a.nombre}</div><div className="arc-meta">{a.categoria} - {a.tamano} - {fmtD(a.fecha)}</div></div><a href={a.url} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-out" style={{fontSize:11,padding:"4px 10px"}}>{IC.dl} Abrir</a></div>):<div className="do-empty"><h4>Sin archivos</h4></div>}
         </div>}
@@ -844,18 +845,29 @@ function VentaModal({initial,pacs,onClose,onSave}) {
 }
 
 // ── Upload modal ─────────────────────────────────────────────────────────────
-function UploadModal({onClose,pacienteId,pacs,role,onUploaded}) {
-  const [f,sf]=useState({pacienteId:pacienteId||"",expedienteId:"",categoria:"General"});
+function UploadModal({onClose,pacienteId,expedienteIdInicial,pacs,exps,role,onUploaded}) {
+  const [f,sf]=useState({pacienteId:pacienteId||"",expedienteId:expedienteIdInicial||"",categoria:"General"});
   const [file,setFile]=useState(null);
   const [preview,setPreview]=useState(null);
   const [uploading,setUploading]=useState(false);
   const [error,setError]=useState("");
+
+  // Expedientes del paciente seleccionado
+  const expsDelPaciente = (exps||[]).filter(e=>e.pacienteId===f.pacienteId)
+    .sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+
   const handleFile=(ev)=>{const sel=ev.target.files[0];if(!sel)return;if(sel.size>10*1024*1024){setError("Archivo muy grande (max 10MB)");return;}setFile(sel);setError("");if(sel.type.startsWith("image/")){const r=new FileReader();r.onload=e=>setPreview(e.target.result);r.readAsDataURL(sel);}else{setPreview(null);}};
   const handleUpload=async()=>{if(!file||!f.pacienteId){setError("Selecciona paciente y archivo");return;}setUploading(true);setError("");try{const reader=new FileReader();reader.onload=async(e)=>{const base64=e.target.result.split(",")[1];const archivoId=uid("A");const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"upload",archivoId,pacienteId:f.pacienteId,expedienteId:f.expedienteId,categoria:f.categoria,fileName:file.name,mimeType:file.type,fileData:base64,subidoPor:role})});const data=await res.json();if(data.success){onUploaded({id:archivoId,pacienteId:f.pacienteId,expedienteId:f.expedienteId,nombre:file.name,tipo:file.type.startsWith("image/")?"Imagen":"PDF",categoria:f.categoria,fecha:today(),url:data.fileUrl,tamano:data.tamano,subidoPor:role});}else{setError(data.error||"Error al subir");setUploading(false);}};reader.readAsDataURL(file);}catch(err){setError(err.toString());setUploading(false);}};
   return <Modal title="Subir Archivo" onClose={onClose} footer={<><button className="do-btn do-btn-out" onClick={onClose}>Cancelar</button><button className="do-btn do-btn-pri" onClick={handleUpload} disabled={uploading||!file}>{uploading?"Subiendo...":"Subir Archivo"}</button></>}>
     {!pacienteId&&<div className="do-fg"><label className="do-fl">Paciente *</label><select className="do-fi" value={f.pacienteId} onChange={ev=>sf({...f,pacienteId:ev.target.value})}><option value="">Seleccionar...</option>{pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>}
     <div className="do-fg"><label className="do-fl">Categoria</label><select className="do-fi" value={f.categoria} onChange={ev=>sf({...f,categoria:ev.target.value})}><option>General</option><option>Retinografia</option><option>Paquimetria</option><option>Receta</option><option>Convenio</option><option>Foto clinica</option><option>Campimetria</option><option>OCT</option><option>Otro</option></select></div>
-    <div className="do-fg"><label className="do-fl">Expediente (opcional)</label><input className="do-fi" value={f.expedienteId} onChange={ev=>sf({...f,expedienteId:ev.target.value})} placeholder="EX001 (dejar vacio si no aplica)"/></div>
+    <div className="do-fg"><label className="do-fl">Expediente (opcional)</label>
+      <select className="do-fi" value={f.expedienteId} onChange={ev=>sf({...f,expedienteId:ev.target.value})}>
+        <option value="">— Sin expediente (archivo general) —</option>
+        {expsDelPaciente.map(e=><option key={e.id} value={e.id}>{fmtD(e.fecha)} · {e.motivo||e.id}</option>)}
+      </select>
+      {f.pacienteId&&expsDelPaciente.length===0&&<div style={{fontSize:11,color:"#C4B5A0",marginTop:4}}>Este paciente no tiene expedientes aún</div>}
+    </div>
     <div className="do-fg"><label className="do-fl">Archivo *</label><div style={{border:"2px dashed #E8DFD1",borderRadius:10,padding:24,textAlign:"center",cursor:"pointer",background:file?"#E8F5F2":"#FDFBF8"}} onClick={()=>document.getElementById("file-input").click()}><input id="file-input" type="file" accept="image/*,.pdf" style={{display:"none"}} onChange={handleFile}/>{file?<div><div style={{fontSize:14,fontWeight:500}}>{file.name}</div><div style={{fontSize:12,color:"#8B7355",marginTop:4}}>{(file.size/1024).toFixed(0)} KB</div></div>:<div><div style={{fontSize:32,marginBottom:8}}>📎</div><div style={{fontSize:14,color:"#8B7355"}}>Clic para seleccionar foto o PDF</div><div style={{fontSize:12,color:"#C4B5A0",marginTop:4}}>Max 10 MB</div></div>}</div></div>
     {preview&&<div className="do-fg"><label className="do-fl">Vista previa</label><img src={preview} style={{maxWidth:"100%",maxHeight:200,borderRadius:8,border:"1px solid #E8DFD1"}} alt="preview"/></div>}
     {error&&<div style={{color:"#D4726A",fontSize:13,padding:"8px 12px",background:"#FDF0EE",borderRadius:8,marginTop:8}}>{error}</div>}
@@ -1406,7 +1418,7 @@ export default function DianeOpticasCRM() {
           {view==="archivos"&&<div className="do-tbl">
             <div className="do-tbl-hd">
               <h3>Archivos ({archivos.length})</h3>
-              <button className="do-btn do-btn-pri" onClick={()=>setShowUpload("")}>{IC.up} Subir archivo</button>
+              <button className="do-btn do-btn-pri" onClick={()=>setShowUpload("")}>{IC.up} Subir</button>
             </div>
             {/* Mobile cards */}
             <div className="mob-list">{archivos.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map((a,i)=>{
@@ -1491,7 +1503,7 @@ export default function DianeOpticasCRM() {
       onAddExp={pid=>setShowExpM({pacienteId:pid})}
       onEditExp={ex=>setShowExpM({initial:ex,pacienteId:ex.pacienteId})}
       onDeleteExp={deleteExp}
-      onUpload={pid=>setShowUpload(pid)}
+      onUpload={obj=>setShowUpload(obj)}
       onEditPaciente={p=>{setSelPat(null);setTimeout(()=>setShowPacM(p),100);}}/>}
 
     {/* ── Modals ── */}
@@ -1500,7 +1512,7 @@ export default function DianeOpticasCRM() {
     {showExpM!==null&&<ExpModal pacienteId={showExpM.pacienteId} initial={showExpM.initial||null} pacs={pacs} onClose={()=>setShowExpM(null)} onSave={saveExp}/>}
     {showVentaM!==null&&<VentaModal initial={showVentaM.id?showVentaM:null} pacs={pacs} onClose={()=>setShowVentaM(null)} onSave={saveVenta}/>}
     {showSegM!==null&&<SegModal initial={showSegM.id?showSegM:null} pacs={pacs} onClose={()=>setShowSegM(null)} onSave={saveSeg}/>}
-    {showUpload!==null&&<UploadModal pacienteId={showUpload} pacs={pacs} role={role} onClose={()=>setShowUpload(null)} onUploaded={a=>{setArchivos([a,...archivos]);setShowUpload(null);toast("Archivo subido");}}/>}
+    {showUpload!==null&&<UploadModal pacienteId={typeof showUpload==="object"?showUpload.pacienteId:showUpload} expedienteIdInicial={typeof showUpload==="object"?showUpload.expedienteId:""} pacs={pacs} exps={exps} role={role} onClose={()=>setShowUpload(null)} onUploaded={a=>{setArchivos([a,...archivos]);setShowUpload(null);toast("Archivo subido");}}/>}
     {confirm&&<ConfirmModal msg={confirm.msg} onYes={()=>{confirm.onYes();setConfirm(null);}} onNo={()=>setConfirm(null)}/>}
 
     <ToastContainer toasts={toasts}/>
