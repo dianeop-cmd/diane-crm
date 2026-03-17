@@ -856,7 +856,40 @@ function UploadModal({onClose,pacienteId,expedienteIdInicial,pacs,exps,role,onUp
   const expsDelPaciente = (exps||[]).filter(e=>e.pacienteId===f.pacienteId)
     .sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
 
-  const handleFile=(ev)=>{const sel=ev.target.files[0];if(!sel)return;if(sel.size>10*1024*1024){setError("Archivo muy grande (max 10MB)");return;}setFile(sel);setError("");if(sel.type.startsWith("image/")){const r=new FileReader();r.onload=e=>setPreview(e.target.result);r.readAsDataURL(sel);}else{setPreview(null);}};
+  const handleFile=(ev)=>{
+    const sel=ev.target.files[0];
+    if(!sel)return;
+    if(sel.size>10*1024*1024){setError("Archivo muy grande (max 10MB)");return;}
+    setError("");
+    if(sel.type.startsWith("image/")){
+      // Comprimir imagen antes de subir
+      const reader=new FileReader();
+      reader.onload=e=>{
+        const img=new Image();
+        img.onload=()=>{
+          const MAX=1200; // max 1200px en el lado más largo
+          let w=img.width, h=img.height;
+          if(w>MAX||h>MAX){
+            if(w>h){h=Math.round(h*MAX/w);w=MAX;}
+            else{w=Math.round(w*MAX/h);h=MAX;}
+          }
+          const canvas=document.createElement("canvas");
+          canvas.width=w; canvas.height=h;
+          canvas.getContext("2d").drawImage(img,0,0,w,h);
+          canvas.toBlob(blob=>{
+            const compressed=new File([blob],sel.name,{type:"image/jpeg"});
+            setFile(compressed);
+            setPreview(canvas.toDataURL("image/jpeg",0.85));
+          },"image/jpeg",0.85);
+        };
+        img.src=e.target.result;
+      };
+      reader.readAsDataURL(sel);
+    } else {
+      setFile(sel);
+      setPreview(null);
+    }
+  };
   const handleUpload=async()=>{if(!file||!f.pacienteId){setError("Selecciona paciente y archivo");return;}setUploading(true);setError("");try{const reader=new FileReader();reader.onload=async(e)=>{const base64=e.target.result.split(",")[1];const archivoId=uid("A");const res=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"upload",archivoId,pacienteId:f.pacienteId,expedienteId:f.expedienteId,categoria:f.categoria,fileName:file.name,mimeType:file.type,fileData:base64,subidoPor:role})});const data=await res.json();if(data.success){onUploaded({id:archivoId,pacienteId:f.pacienteId,expedienteId:f.expedienteId,nombre:file.name,tipo:file.type.startsWith("image/")?"Imagen":"PDF",categoria:f.categoria,fecha:today(),url:data.fileUrl,tamano:data.tamano,subidoPor:role});}else{setError(data.error||"Error al subir");setUploading(false);}};reader.readAsDataURL(file);}catch(err){setError(err.toString());setUploading(false);}};
   return <Modal title="Subir Archivo" onClose={onClose} footer={<><button className="do-btn do-btn-out" onClick={onClose}>Cancelar</button><button className="do-btn do-btn-pri" onClick={handleUpload} disabled={uploading||!file}>{uploading?"Subiendo...":"Subir Archivo"}</button></>}>
     {!pacienteId&&<div className="do-fg"><label className="do-fl">Paciente *</label><select className="do-fi" value={f.pacienteId} onChange={ev=>sf({...f,pacienteId:ev.target.value})}><option value="">Seleccionar...</option>{pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>}
