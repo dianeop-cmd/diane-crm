@@ -242,6 +242,13 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
   return <>
     <div className="do-overlay" onClick={onClose}/>
     <div className="do-ficha">
+      {/* Barra de regreso móvil */}
+      <div className="mob-back-bar">
+        <button className="mob-back-btn" onClick={onClose}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          Volver
+        </button>
+      </div>
       <div className="ficha-hd">
         <div style={{display:"flex",alignItems:"center",gap:16}}>
           <div className="do-av do-av-teal" style={{width:52,height:52,fontSize:18}}>{ini(p.nombre)}</div>
@@ -615,6 +622,8 @@ export default function DianeOpticasCRM() {
     <style>{STYLES}</style>
     <div className="do-layout">
       {/* Sidebar */}
+      {/* Overlay para cerrar sidebar en móvil */}
+      {mobNav&&<div className="mob-sidebar-overlay" onClick={()=>setMobNav(false)}/>}
       <aside className={"do-side"+(mobNav?" open":"")}>
         <div className="do-side-brand"><h1>Diane Opticas</h1><p>CRM + Clinica</p></div>
         <nav className="do-side-nav">
@@ -927,6 +936,9 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
 .do-btn-ic-d:hover{border-color:#D4726A;color:#D4726A;background:#FDF0EE}
 .do-mob-tog{display:none;background:none;border:none;cursor:pointer;color:#4A3F35;padding:6px;min-width:44px;min-height:44px;align-items:center;justify-content:center}
 
+/* Overlay detrás del sidebar en móvil */
+.mob-sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;animation:doFadeIn .2s ease}
+
 /* FAB — Floating Action Button (mobile) */
 .do-fab{display:none;position:fixed;bottom:24px;right:20px;z-index:90;width:56px;height:56px;border-radius:28px;background:#2A7C6F;color:#fff;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(42,124,111,.35);font-size:24px;align-items:center;justify-content:center;transition:all .2s}
 .do-fab:active{transform:scale(.94);background:#1f6057}
@@ -1021,6 +1033,9 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
 /* ── Ficha / slide panel ── */
 .do-overlay{position:fixed;inset:0;background:rgba(45,37,32,.35);z-index:200;animation:doFadeIn .2s ease}
 .do-ficha{position:fixed;top:0;right:0;bottom:0;width:680px;background:#fff;z-index:201;overflow-y:auto;box-shadow:-8px 0 32px rgba(45,37,32,.15);animation:doSlide .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.mob-back-bar{display:none;padding:10px 16px;border-bottom:1px solid #F3EDE4;flex-shrink:0;background:#FDFBF8}
+.mob-back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:#2A7C6F;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;padding:6px 8px;border-radius:8px;min-height:40px}
+.mob-back-btn:active{background:#E8F5F2}
 .ficha-hd{padding:20px 24px;border-bottom:1px solid #F3EDE4;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0}
 .ficha-name{font-family:'Playfair Display',serif;font-size:22px;font-weight:500;color:#2D2520}
 .ficha-tabs{display:flex;border-bottom:1px solid #F3EDE4;padding:0 24px;flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -1110,6 +1125,7 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
   .do-page{padding:12px 14px}
   .do-mob-tog{display:flex !important}
   .do-search{width:100%}
+  .mob-sidebar-overlay{display:block}
 
   /* Stats 2x2 en móvil */
   .do-stats{grid-template-columns:1fr 1fr;gap:10px}
@@ -1124,6 +1140,7 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
   /* Ficha full screen en móvil */
   .do-ficha{width:100%;left:0;animation:doSlideUp .25s cubic-bezier(.4,0,.2,1)}
   .ficha-grid{grid-template-columns:1fr}
+  .mob-back-bar{display:block}
 
   /* Modal bottom sheet en móvil */
   .do-modal-ov{align-items:flex-end}
