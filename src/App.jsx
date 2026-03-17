@@ -1065,7 +1065,7 @@ export default function DianeOpticasCRM() {
   };
 
   // ── Derived ────────────────────────────────────────────────
-  const segPend    = segs.filter(s=>s.estado==="Pendiente").length;
+  const segPend    = segs.filter(s=>s.estado==="Pendiente"||s.estado==="Programado").length;
   const citasSem   = citas.filter(c=>{const d=dUntil(c.fecha);return d>=0&&d<=7;}).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
   const citasHoy   = citas.filter(c=>c.fecha===today());
   const segsPend   = segs.filter(s=>s.estado==="Pendiente");
@@ -1289,6 +1289,27 @@ export default function DianeOpticasCRM() {
           {/* ── EXPEDIENTES ── */}
           {view==="expedientes"&&<div className="do-tbl">
             <div className="do-tbl-hd"><h3>Expedientes ({exps.length})</h3><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowExpM({pacienteId:""})}>{IC.plus} Nueva Consulta</button></div>
+            {/* Mobile cards */}
+            <div className="mob-list">{exps.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map((ex,i)=>{
+              const p=pacs.find(x=>x.id===ex.pacienteId);
+              const isA=ex.diagnostico&&ex.diagnostico.includes("SOSPECHA");
+              return <div key={ex.id} className="mob-card" onClick={()=>p&&setSelPat(p)}>
+                <Av name={p?p.nombre:"?"} i={i}/>
+                <div className="mob-card-body">
+                  <div className="mob-card-name">{p?p.nombre:"?"}</div>
+                  <div className="mob-card-sub">{fmtD(ex.fecha)} · {ex.motivo}</div>
+                  <div className="mob-card-meta">
+                    {isA&&<span style={{fontSize:11,color:"#D4726A",fontWeight:700}}>⚠ Alerta</span>}
+                    {ex.tipoLente&&<Tag type={ex.tipoLente}/>}
+                    {ex.proximaRevision&&<span style={{fontSize:11,color:"#2A7C6F"}}>Rev: {fmtD(ex.proximaRevision)}</span>}
+                  </div>
+                </div>
+                <div className="mob-card-right">
+                  {can(role,"expediente")&&<button className="do-btn-ic" onClick={e=>{e.stopPropagation();setShowExpM({initial:ex,pacienteId:ex.pacienteId})}}>{IC.pen}</button>}
+                </div>
+              </div>;
+            })}</div>
+            {/* Desktop table */}
             <table><thead><tr><th>Paciente</th><th>Fecha</th><th>Motivo</th><th>Diagnostico</th><th>Prox.</th><th></th></tr></thead>
             <tbody>{exps.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map((ex,i)=>{const p=pacs.find(x=>x.id===ex.pacienteId);const isA=ex.diagnostico&&ex.diagnostico.includes("SOSPECHA");return <tr key={ex.id} onClick={()=>p&&setSelPat(p)}>
               <td><div className="do-pcell"><Av name={p?p.nombre:"?"} i={i}/><span className="do-pname">{p?p.nombre:"?"}</span></div></td>
@@ -1303,6 +1324,7 @@ export default function DianeOpticasCRM() {
               </div></td>
             </tr>;})}
             </tbody></table>
+            {exps.length===0&&<div className="do-empty"><h4>Sin expedientes</h4></div>}
           </div>}
 
           {/* ── VENTAS ── */}
@@ -1353,6 +1375,22 @@ export default function DianeOpticasCRM() {
           {/* ── ARCHIVOS ── */}
           {view==="archivos"&&<div className="do-tbl">
             <div className="do-tbl-hd"><h3>Archivos ({archivos.length})</h3><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowUpload("")}>{IC.up} Subir</button></div>
+            {/* Mobile cards */}
+            <div className="mob-list">{archivos.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map((a,i)=>{
+              const p=pacs.find(x=>x.id===a.pacienteId);
+              return <div key={a.id} className="mob-card">
+                <span style={{fontSize:28,width:38,textAlign:"center",flexShrink:0}}>{a.tipo==="Imagen"?"🖼":"📄"}</span>
+                <div className="mob-card-body">
+                  <div className="mob-card-name">{a.nombre}</div>
+                  <div className="mob-card-sub">{p?p.nombre:"?"} · {fmtD(a.fecha)}</div>
+                  <div className="mob-card-meta"><Tag type={a.categoria}/><span style={{fontSize:11,color:"#C4B5A0"}}>{a.tamano}</span></div>
+                </div>
+                <div className="mob-card-right">
+                  <a href={a.url} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-out" style={{fontSize:11,padding:"6px 10px"}}>{IC.dl}</a>
+                </div>
+              </div>;
+            })}</div>
+            {/* Desktop table */}
             <table><thead><tr><th>Archivo</th><th>Paciente</th><th>Categoria</th><th>Fecha</th><th>Tamano</th><th></th></tr></thead>
             <tbody>{archivos.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map((a,i)=>{const p=pacs.find(x=>x.id===a.pacienteId);return <tr key={a.id}>
               <td><div className="do-pcell"><span style={{fontSize:20}}>{a.tipo==="Imagen"?"🖼":"📄"}</span><div><div className="do-pname">{a.nombre}</div><div className="do-pdetail">{a.expedienteId?"Exp: "+a.expedienteId:"General"}</div></div></div></td>
@@ -1362,6 +1400,7 @@ export default function DianeOpticasCRM() {
               <td><a href={a.url} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-out" style={{fontSize:11,padding:"4px 10px"}}>{IC.dl} Abrir</a></td>
             </tr>;})}
             </tbody></table>
+            {archivos.length===0&&<div className="do-empty"><h4>Sin archivos</h4></div>}
           </div>}
         </div>
       </main>
