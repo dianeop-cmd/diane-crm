@@ -1194,10 +1194,11 @@ export default function DianeOpticasCRM() {
 const STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=Playfair+Display:wght@400;500;600&display=swap');
 *{margin:0;padding:0;box-sizing:border-box}
-body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min-height:100vh;-webkit-tap-highlight-color:transparent;}
+body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min-height:100vh;-webkit-tap-highlight-color:transparent;overflow-x:hidden;}
+html{overflow-x:hidden;}
 
 /* ── Layout ── */
-.do-layout{display:flex;min-height:100vh}
+.do-layout{display:flex;min-height:100vh;max-width:100vw;overflow-x:hidden}
 .do-side{width:260px;background:#2D2520;color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .25s cubic-bezier(.4,0,.2,1)}
 .do-side-brand{padding:24px 24px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
 .do-side-brand h1{font-family:'Playfair Display',serif;font-size:22px;font-weight:500}
@@ -1233,7 +1234,7 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
 .do-btn-pri:hover{background:#3A9B8C}
 .do-btn-out{background:#fff;color:#4A3F35;border:1px solid #E8DFD1}
 .do-btn-out:hover{border-color:#C4B5A0;background:#FAF7F2}
-.do-btn-wa{background:#25D366;color:#fff;font-size:12px;padding:5px 10px;border-radius:6px;min-height:36px}
+.do-btn-wa{background:#25D366;color:#fff;font-size:12px;padding:5px 10px;border-radius:6px;min-height:36px;white-space:nowrap}
 .do-btn-wa:hover{background:#20BD5A}
 .do-btn-ic{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;border:1px solid #E8DFD1;background:#fff;cursor:pointer;color:#8B7355;transition:all .2s;padding:0;flex-shrink:0}
 .do-btn-ic:hover{border-color:#2A7C6F;color:#2A7C6F;background:#E8F5F2}
@@ -1260,7 +1261,7 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
 .do-stat-sub{font-size:12px;color:#C4B5A0;margin-top:3px}
 
 /* ── Table container ── */
-.do-tbl{background:#fff;border-radius:12px;border:1px solid rgba(232,223,209,.6);overflow:hidden;animation:doFade .35s .15s cubic-bezier(.4,0,.2,1) both}
+.do-tbl{background:#fff;border-radius:12px;border:1px solid rgba(232,223,209,.6);overflow:hidden;animation:doFade .35s .15s cubic-bezier(.4,0,.2,1) both;max-width:100%}
 .do-tbl-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid #F3EDE4;flex-wrap:wrap;gap:10px}
 .do-tbl-hd h3{font-family:'Playfair Display',serif;font-size:16px;font-weight:500}
 .do-filters{display:flex;gap:6px;flex-wrap:wrap}
@@ -1281,11 +1282,11 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
 .mob-card{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(232,223,209,.4);cursor:pointer;transition:background .15s;-webkit-user-select:none;user-select:none}
 .mob-card:active{background:rgba(232,223,209,.3)}
 .mob-card:last-child{border-bottom:none}
-.mob-card-body{flex:1;min-width:0}
+.mob-card-body{flex:1;min-width:0;overflow:hidden}
 .mob-card-name{font-weight:600;font-size:13.5px;color:#2D2520;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mob-card-sub{font-size:11.5px;color:#8B7355;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mob-card-meta{display:flex;gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap}
-.mob-card-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.mob-card-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;max-width:110px}
 .mob-card-actions{display:flex;gap:6px;margin-top:6px}
 
 /* ── Avatar / Tags ── */
@@ -1433,6 +1434,8 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
 
 @media(max-width:768px){
   /* Sidebar oculto — se usa bottom nav */
+  .do-btn-wa span{display:none}
+  .do-page{max-width:100%;overflow-x:hidden}
   .do-side{transform:translateX(-100%)}
   .do-side.open{transform:translateX(0);z-index:150}
   .do-main{margin-left:0;padding-bottom:80px}
