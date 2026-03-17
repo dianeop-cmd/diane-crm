@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
 
+// ── PWA: Registrar Service Worker ──
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 // ═══ GOOGLE SHEETS CONFIG ═══
 const SHEET_ID = "1NsXy6gdyau2pU_UH0Wj5af3yFQQYPSPC54kBsBHxGdI";
 const sheetURL = (name) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(name)}`;
@@ -718,6 +725,28 @@ export default function DianeOpticasCRM() {
   const [search,setSearch]= useState("");
   const [selPat,setSelPat]= useState(null);
   const [mobNav,setMobNav]= useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      setShowInstallBanner(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === "accepted") {
+      setShowInstallBanner(false);
+      setInstallPrompt(null);
+    }
+  };
   const [showGSearch,setShowGSearch] = useState(false);
 
   // modals
@@ -1144,6 +1173,28 @@ export default function DianeOpticasCRM() {
         </div>
       </main>
     </div>
+
+    {/* Banner de instalación PWA */}
+    {showInstallBanner&&<div style={{
+      position:"fixed",bottom:70,left:12,right:12,zIndex:120,
+      background:"#2D2520",color:"#fff",borderRadius:12,
+      padding:"12px 16px",display:"flex",alignItems:"center",gap:12,
+      boxShadow:"0 4px 20px rgba(0,0,0,.3)",animation:"doFade .3s ease"
+    }}>
+      <img src="/icon-192.png" style={{width:40,height:40,borderRadius:8,flexShrink:0}} alt="Diane"/>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontWeight:600,fontSize:13}}>Instalar Diane CRM</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,.6)",marginTop:2}}>Agregar a pantalla de inicio</div>
+      </div>
+      <button onClick={handleInstall} style={{
+        background:"#2A7C6F",color:"#fff",border:"none",borderRadius:8,
+        padding:"8px 14px",fontSize:12,fontWeight:600,cursor:"pointer",flexShrink:0
+      }}>Instalar</button>
+      <button onClick={()=>setShowInstallBanner(false)} style={{
+        background:"none",border:"none",color:"rgba(255,255,255,.5)",
+        cursor:"pointer",padding:"4px",fontSize:18,flexShrink:0,lineHeight:1
+      }}>×</button>
+    </div>}
 
     {/* Mobile bottom nav */}
     <nav className="mob-bottomnav">
