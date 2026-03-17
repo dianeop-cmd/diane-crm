@@ -63,7 +63,7 @@ async function fetchSheet(name) {
 }
 
 // ═══ GOOGLE APPS SCRIPT API ═══
-const API_URL = "https://script.google.com/macros/library/d/14S4jjovIaeRinJ9TDUcwr3KrSIkgHAZakB1wqbR9UVuwZE2L9l4-RSAa/12";
+const API_URL = "https://script.google.com/macros/s/AKfycbz7c5_KmSwF8aZUjytmkx-OVmf1H8SD115fu7NXEa9bd6M-afWI3DoVYe84hq8Gttln/exec";
 
 async function writeToSheet(sheet, row) {
   try {
@@ -466,6 +466,87 @@ function generarReceta(ex, pac) {
   const w = window.open("","_blank","width=700,height=600");
   w.document.write(html);
   w.document.close();
+}
+
+
+// ── Gráfica de ventas ─────────────────────────────────────────
+function VentasChart({ventas}) {
+  // Calcular ventas por semana del mes actual y mes anterior
+  const now   = new Date();
+  const mes   = now.toISOString().slice(0,7);
+  const mesAnt= new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().slice(0,7);
+
+  // Agrupar por día los últimos 30 días
+  const dias = {};
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0,10);
+    dias[key] = 0;
+  }
+  ventas.forEach(v => {
+    if (dias[v.fecha] !== undefined) dias[v.fecha] += parseFloat(v.monto)||0;
+  });
+
+  // Agrupar por semana (7 días = 1 barra)
+  const semanas = [];
+  const keys = Object.keys(dias);
+  for (let i = 0; i < keys.length; i += 7) {
+    const chunk = keys.slice(i, i+7);
+    const total = chunk.reduce((s, k) => s + dias[k], 0);
+    const label = fmtD(chunk[0]).split(" ").slice(0,2).join(" ");
+    semanas.push({ label, total });
+  }
+
+  const maxVal = Math.max(...semanas.map(s=>s.total), 1);
+  const totalMes = ventas.filter(v=>(v.fecha||"").startsWith(mes)).reduce((s,v)=>s+(parseFloat(v.monto)||0),0);
+  const totalAnt = ventas.filter(v=>(v.fecha||"").startsWith(mesAnt)).reduce((s,v)=>s+(parseFloat(v.monto)||0),0);
+  const diff = totalAnt > 0 ? ((totalMes - totalAnt) / totalAnt * 100).toFixed(0) : null;
+  const up   = diff === null || Number(diff) >= 0;
+
+  return <div style={{background:"#fff",border:"1px solid rgba(232,223,209,.6)",borderRadius:12,padding:"20px 22px",boxShadow:"0 2px 8px rgba(74,63,53,.06)",marginBottom:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+      <div>
+        <div style={{fontSize:11,color:"#8B7355",textTransform:"uppercase",letterSpacing:1,fontWeight:600,marginBottom:4}}>Ventas — últimos 30 días</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:600,color:"#2D2520"}}>${totalMes.toLocaleString("es-MX")}</div>
+      </div>
+      {diff!==null&&<div style={{display:"flex",alignItems:"center",gap:4,background:up?"#E8F5F2":"#FDF0EE",color:up?"#2A7C6F":"#D4726A",borderRadius:20,padding:"4px 10px",fontSize:12,fontWeight:600}}>
+        {up?"↑":"↓"} {Math.abs(Number(diff))}% vs mes ant.
+      </div>}
+    </div>
+
+    {/* Barras */}
+    <div style={{display:"flex",alignItems:"flex-end",gap:6,height:80}}>
+      {semanas.map((s,i)=>{
+        const h = maxVal > 0 ? Math.max((s.total/maxVal)*80, s.total>0?6:2) : 2;
+        const isLast = i === semanas.length-1;
+        return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+          <div style={{
+            width:"100%", height:h,
+            background: isLast ? "#2A7C6F" : "rgba(42,124,111,.25)",
+            borderRadius:"4px 4px 0 0",
+            transition:"height .4s ease",
+            position:"relative",
+          }} title={"$"+s.total.toLocaleString("es-MX")}>
+            {s.total>0&&isLast&&<div style={{position:"absolute",top:-20,left:"50%",transform:"translateX(-50%)",fontSize:10,color:"#2A7C6F",fontWeight:600,whiteSpace:"nowrap"}}>${(s.total/1000).toFixed(1)}k</div>}
+          </div>
+          <div style={{fontSize:9,color:"#C4B5A0",textAlign:"center",whiteSpace:"nowrap"}}>{s.label}</div>
+        </div>;
+      })}
+    </div>
+
+    {/* Últimas ventas */}
+    {ventas.filter(v=>(v.fecha||"").startsWith(mes)).length > 0 && <div style={{marginTop:14,borderTop:"1px solid #F3EDE4",paddingTop:12}}>
+      <div style={{fontSize:10,color:"#8B7355",textTransform:"uppercase",letterSpacing:1,fontWeight:600,marginBottom:8}}>Últimas ventas del mes</div>
+      {ventas.filter(v=>(v.fecha||"").startsWith(mes)).slice(-3).reverse().map((v,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"1px solid #F3EDE4"}}>
+        <div>
+          <div style={{fontSize:12.5,fontWeight:500,color:"#2D2520"}}>{v.paciente}</div>
+          <div style={{fontSize:11,color:"#C4B5A0"}}>{fmtD(v.fecha)} · {v.metodo}</div>
+        </div>
+        <div style={{fontWeight:700,fontSize:14,color:"#2A7C6F"}}>${(parseFloat(v.monto)||0).toLocaleString("es-MX")}</div>
+      </div>)}
+    </div>}
+  </div>;
 }
 
 // ── Búsqueda global ──────────────────────────────────────────────────────────
@@ -1063,6 +1144,7 @@ export default function DianeOpticasCRM() {
               <div className="do-stat s3" style={{cursor:"pointer"}} onClick={()=>setView("seguimientos")}><div className="do-stat-label">Seguimientos</div><div className="do-stat-val">{segsPend.length}</div><div className="do-stat-sub">Pendientes →</div></div>
               <div className="do-stat s4" style={{cursor:"pointer"}} onClick={()=>setView("ventas")}><div className="do-stat-label">Ventas mes</div><div className="do-stat-val">{"$"+totalMes.toLocaleString()}</div><div className="do-stat-sub">{ventasMes.length} ventas →</div></div>
             </div>
+            {can(role,"ventas")&&<VentasChart ventas={ventas}/>}
             {alerts.length>0&&<div style={{marginBottom:24}}><h3 className="sec-title">Atencion Requerida</h3>{alerts.map((a,i)=><div key={i} className={"do-alert "+a.t}><div className={"do-alert-ic "+(a.t==="urgent"?"u":"r")}>{IC.alrt}</div><div className="do-alert-c"><div className="do-alert-t">{a.title}</div><div className="do-alert-s">{a.sub}</div></div></div>)}</div>}
             <div className="do-tbl">
               <div className="do-tbl-hd"><h3>Proximas Citas</h3><button className="do-btn do-btn-out" style={{fontSize:12}} onClick={()=>setView("citas")}>Ver agenda →</button></div>
