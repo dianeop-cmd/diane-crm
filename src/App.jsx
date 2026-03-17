@@ -162,6 +162,27 @@ const IC = {
 const Tag = ({type}) => type ? <span className={"do-tag do-tag-"+type.toLowerCase().replace(/\s+/g,"-")}>{type}</span> : null;
 const Av  = ({name,i=0}) => <div className={"do-av do-av-"+["teal","coral","gold","blue"][i%4]}>{ini(name||"?")}</div>;
 const WA  = ({phone,msg}) => { if(!phone) return null; return <a href={"https://wa.me/52"+(phone||"").replace(/\D/g,"")+"?text="+encodeURIComponent(msg||"Hola, le escribimos de Diane Opticas.")} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-wa" onClick={e=>e.stopPropagation()}>{IC.wa} WhatsApp</a>; };
+
+// Genera mensaje de WhatsApp personalizado por tipo de cita
+function citaMsg(paciente, cita) {
+  const nombre = (paciente?.nombre||"").split(" ")[0];
+  const fecha  = fmtD(cita.fecha);
+  const hora   = cita.hora || "";
+  const tipo   = cita.tipo || "consulta";
+  const msgs = {
+    "Consulta":
+      `Hola ${nombre} 👋, le recordamos su *consulta optométrica* en Diane Ópticas el *${fecha}* a las *${hora}*. Por favor llegue 5 minutos antes. ¡Le esperamos! 😊`,
+    "Entrega":
+      `Hola ${nombre} 👋, sus lentes están listos para entrega 🎉. Le esperamos en Diane Ópticas el *${fecha}* a las *${hora}*. ¡Cualquier duda, con gusto le atendemos!`,
+    "Ajuste":
+      `Hola ${nombre} 👋, le recordamos su cita de *ajuste de lentes* en Diane Ópticas el *${fecha}* a las *${hora}*. ¡Le esperamos!`,
+    "Control":
+      `Hola ${nombre} 👋, le recordamos su *consulta de control* en Diane Ópticas el *${fecha}* a las *${hora}*. Es importante no saltarse sus controles. ¡Le esperamos!`,
+    "Lentes de contacto":
+      `Hola ${nombre} 👋, le recordamos su cita de *adaptación de lentes de contacto* en Diane Ópticas el *${fecha}* a las *${hora}*. Por favor venga sin lentes de contacto ese día. ¡Le esperamos!`,
+  };
+  return msgs[tipo] || `Hola ${nombre} 👋, le recordamos su cita en Diane Ópticas el *${fecha}* a las *${hora}*. ¡Le esperamos!`;
+}
 const Chip = ({label,active,onClick}) => <button className={"do-chip"+(active?" active":"")} onClick={onClick}>{label}</button>;
 const RxCell = ({val}) => <div className="rx-cell"><span className="rx-val">{val||"—"}</span></div>;
 
@@ -656,11 +677,22 @@ function CitaModal({initial,pacs,onClose,onSave}) {
   const [f,sf] = useState(initial ? {...initial} : {pacienteId:"",fecha:"",hora:"",tipo:"Consulta",estado:"Por confirmar",notas:""});
   return <Modal title={isEdit?"Editar Cita":"Nueva Cita"} onClose={onClose} footer={
     <><button className="do-btn do-btn-out" onClick={onClose}>Cancelar</button>
-    <button className="do-btn do-btn-pri" onClick={()=>{if(!f.pacienteId||!f.fecha||!f.hora)return;const p=pacs.find(x=>x.id===f.pacienteId);onSave({...f,paciente:p?p.nombre:""});onClose();}}>{isEdit?"Actualizar":"Agendar"}</button></>
+    <button className="do-btn do-btn-pri" onClick={()=>{if(!f.pacienteId||!f.fecha)return;const p=pacs.find(x=>x.id===f.pacienteId);onSave({...f,paciente:p?p.nombre:""});onClose();}}>{isEdit?"Actualizar":"Agendar"}</button></>
   }>
     <div className="do-fg"><label className="do-fl">Paciente *</label><select className="do-fi" value={f.pacienteId} onChange={ev=>sf({...f,pacienteId:ev.target.value})}><option value="">Seleccionar...</option>{pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>
-    <div className="do-fr"><div className="do-fg"><label className="do-fl">Fecha *</label><input className="do-fi" type="date" value={f.fecha} onChange={ev=>sf({...f,fecha:ev.target.value})}/></div><div className="do-fg"><label className="do-fl">Hora *</label><input className="do-fi" type="time" value={f.hora} onChange={ev=>sf({...f,hora:ev.target.value})}/></div></div>
-    <div className="do-fr"><div className="do-fg"><label className="do-fl">Tipo</label><select className="do-fi" value={f.tipo} onChange={ev=>sf({...f,tipo:ev.target.value})}><option>Consulta</option><option>Entrega</option><option>Ajuste</option><option>Control</option><option>Lentes de contacto</option></select></div><div className="do-fg"><label className="do-fl">Estado</label><select className="do-fi" value={f.estado} onChange={ev=>sf({...f,estado:ev.target.value})}><option>Por confirmar</option><option>Confirmada</option><option>Pendiente</option><option>Cancelada</option></select></div></div>
+    <div className="do-fr">
+      <div className="do-fg"><label className="do-fl">Fecha *</label><input className="do-fi" type="date" value={f.fecha} onChange={ev=>sf({...f,fecha:ev.target.value})}/></div>
+      <div className="do-fg"><label className="do-fl">Hora *</label>
+        <select className="do-fi" value={f.hora} onChange={ev=>sf({...f,hora:ev.target.value})}>
+          <option value="">— Seleccionar —</option>
+          {["09:00","09:30","10:00","10:30","11:00","11:30","12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00"].map(h=><option key={h} value={h}>{h}</option>)}
+        </select>
+      </div>
+    </div>
+    <div className="do-fr">
+      <div className="do-fg"><label className="do-fl">Tipo</label><select className="do-fi" value={f.tipo} onChange={ev=>sf({...f,tipo:ev.target.value})}><option>Consulta</option><option>Entrega</option><option>Ajuste</option><option>Control</option><option>Lentes de contacto</option></select></div>
+      <div className="do-fg"><label className="do-fl">Estado</label><select className="do-fi" value={f.estado} onChange={ev=>sf({...f,estado:ev.target.value})}><option>Por confirmar</option><option>Confirmada</option><option>Pendiente</option><option>Cancelada</option></select></div>
+    </div>
     <div className="do-fg"><label className="do-fl">Notas</label><textarea className="do-fi do-ta" value={f.notas} onChange={ev=>sf({...f,notas:ev.target.value})}/></div>
   </Modal>;
 }
@@ -1000,7 +1032,7 @@ export default function DianeOpticasCRM() {
             {alerts.length>0&&<div style={{marginBottom:24}}><h3 className="sec-title">Atencion Requerida</h3>{alerts.map((a,i)=><div key={i} className={"do-alert "+a.t}><div className={"do-alert-ic "+(a.t==="urgent"?"u":"r")}>{IC.alrt}</div><div className="do-alert-c"><div className="do-alert-t">{a.title}</div><div className="do-alert-s">{a.sub}</div></div></div>)}</div>}
             <div className="do-tbl">
               <div className="do-tbl-hd"><h3>Proximas Citas</h3></div>
-              {citasSem.length>0?<><table><thead><tr><th>Paciente</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th></th></tr></thead><tbody>{citasSem.map((c,i)=>{const p=pacs.find(x=>x.id===c.pacienteId);return <tr key={c.id} onClick={()=>p&&setSelPat(p)}><td><div className="do-pcell"><Av name={c.paciente} i={i}/><span className="do-pname">{c.paciente}</span></div></td><td>{fmtD(c.fecha)}</td><td>{c.hora}</td><td>{c.tipo}</td><td><Tag type={c.estado}/></td><td>{p&&<WA phone={p.telefono} msg={"Recordatorio cita "+fmtD(c.fecha)+" "+c.hora}/>}</td></tr>;})}</tbody></table></>:<div className="do-empty"><h4>Sin citas esta semana</h4></div>}
+              {citasSem.length>0?<><table><thead><tr><th>Paciente</th><th>Fecha</th><th>Hora</th><th>Tipo</th><th>Estado</th><th></th></tr></thead><tbody>{citasSem.map((c,i)=>{const p=pacs.find(x=>x.id===c.pacienteId);return <tr key={c.id} onClick={()=>p&&setSelPat(p)}><td><div className="do-pcell"><Av name={c.paciente} i={i}/><span className="do-pname">{c.paciente}</span></div></td><td>{fmtD(c.fecha)}</td><td>{c.hora}</td><td>{c.tipo}</td><td><Tag type={c.estado}/></td><td>{p&&<WA phone={p.telefono} msg={citaMsg(p,c)}/>}</td></tr>;})}</tbody></table></>:<div className="do-empty"><h4>Sin citas esta semana</h4></div>}
             </div>
           </div>}
 
@@ -1047,7 +1079,7 @@ export default function DianeOpticasCRM() {
                   <div className="mob-card-sub">{fmtD(c.fecha)} · {c.hora} · {c.tipo}</div>
                   <div className="mob-card-meta"><Tag type={c.estado}/></div>
                   <div className="mob-card-actions">
-                    {p&&<WA phone={p.telefono} msg={"Recordatorio cita "+fmtD(c.fecha)}/>}
+                    {p&&<WA phone={p.telefono} msg={citaMsg(pacs.find(x=>x.id===c.pacienteId),c)}/>}
                     {can(role,"citas")&&<button className="do-btn-ic" onClick={e=>{e.stopPropagation();setShowCitaM(c)}}>{IC.pen}</button>}
                     {can(role,"citas")&&<button className="do-btn-ic do-btn-ic-d" onClick={e=>{e.stopPropagation();deleteCita(c.id)}}>{IC.trash}</button>}
                   </div>
@@ -1060,7 +1092,7 @@ export default function DianeOpticasCRM() {
                 <td>{fmtD(c.fecha)}</td><td>{c.hora}</td><td>{c.tipo}</td><td><Tag type={c.estado}/></td>
                 <td style={{fontSize:12,color:"#C4B5A0",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.notas}</td>
                 <td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:6}}>
-                  {p&&<WA phone={p.telefono} msg={"Recordatorio cita "+fmtD(c.fecha)}/>}
+                  {p&&<WA phone={p.telefono} msg={citaMsg(p,c)}/>}
                   {can(role,"citas")&&<button className="do-btn-ic" onClick={()=>setShowCitaM(c)}>{IC.pen}</button>}
                   {can(role,"citas")&&<button className="do-btn-ic do-btn-ic-d" onClick={()=>deleteCita(c.id)}>{IC.trash}</button>}
                 </div></td>
@@ -1084,7 +1116,7 @@ export default function DianeOpticasCRM() {
                 <td style={{color:urg?"#D4726A":undefined,fontWeight:urg?600:400}}>{fmtD(s.fechaSeg)}{urg&&<span style={{fontSize:10,display:"block",color:"#D4726A"}}>Urgente</span>}</td>
                 <td><Tag type={s.estado}/></td>
                 <td><div style={{display:"flex",gap:6}}>
-                  {p&&<WA phone={p.telefono} msg={s.mensaje}/>}
+                  {p&&<WA phone={p.telefono} msg={s.mensaje||"Hola "+p.nombre.split(" ")[0]+", le contactamos de Diane Ópticas."}/>}
                   {can(role,"seguimientos")&&<button className="do-btn-ic" onClick={()=>setShowSegM(s)}>{IC.pen}</button>}
                   {can(role,"seguimientos")&&<button className="do-btn-ic do-btn-ic-d" onClick={()=>deleteSeg(s.id)}>{IC.trash}</button>}
                 </div></td>
