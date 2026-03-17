@@ -235,8 +235,8 @@ function ExpedienteCard({ex,archivos,expanded,onToggle,onEdit,onDelete,role,paci
       <div className="exp-section"><div className="exp-sec-title">PIO</div><div style={{display:"flex",gap:24,fontSize:14}}><span>OD: <strong style={{color:parseInt(ex.pioOD)>20?"#D4726A":"#2A7C6F"}}>{ex.pioOD} mmHg</strong></span><span>OI: <strong style={{color:parseInt(ex.pioOI)>20?"#D4726A":"#2A7C6F"}}>{ex.pioOI} mmHg</strong></span></div></div>
       {ex.biomicroscopia&&<div className="exp-section"><div className="exp-sec-title">Biomicroscopia</div><div className="exp-text">{ex.biomicroscopia}</div></div>}
       {ex.fondoOjo&&<div className="exp-section"><div className="exp-sec-title">Fondo de Ojo</div><div className="exp-text">{ex.fondoOjo}</div></div>}
-      <div className="exp-section"><div className="exp-sec-title">Diagnostico</div><div className={"exp-diag"+(isA?" exp-diag-alert":"")}>{ex.diagnostico}</div></div>
-      {ex.recomendaciones&&<div className="exp-section"><div className="exp-sec-title">Recomendaciones</div><div className="exp-text">{ex.recomendaciones}</div></div>}
+      <div className="exp-section"><div className="exp-sec-title">Dx: Diagnóstico</div><div className={"exp-diag"+(isA?" exp-diag-alert":"")}>{ex.diagnostico}</div></div>
+      {ex.recomendaciones&&<div className="exp-section"><div className="exp-sec-title">Tx: Tratamiento</div><div className="exp-text">{ex.recomendaciones}</div></div>}
       {ex.tipoLente&&<div className="exp-section"><div className="exp-sec-title">Tipo de lente</div><span className="do-tag do-tag-recurrente">{ex.tipoLente}</span></div>}
       <div className="exp-section" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div className="exp-sec-title" style={{marginBottom:0}}>Proxima Revision</div><span style={{fontWeight:600,color:"#2A7C6F",fontSize:14}}>{fmtD(ex.proximaRevision)}</span></div>
       {exA.length>0&&<div className="exp-section"><div className="exp-sec-title">Archivos ({exA.length})</div>{exA.map(a=><div key={a.id} className="arc-row"><div className="arc-icon">{a.tipo==="Imagen"?"🖼":"📄"}</div><div className="arc-info"><div className="arc-name">{a.nombre}</div><div className="arc-meta">{a.categoria} - {a.tamano}</div></div><a href={a.url} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-out" style={{fontSize:11,padding:"4px 10px"}}>{IC.dl} Ver</a></div>)}</div>}
@@ -306,8 +306,8 @@ function printReceta(ex, pac) {
     ${ex.pioOI?`<span><span class="label">PIO OI: </span><span style="font-size:12px;color:${parseInt(ex.pioOI)>20?"#D4726A":"#2A7C6F"}">${ex.pioOI} mmHg</span></span>`:""}
   </div>
 
-  ${ex.diagnostico?`<div class="section">Diagnóstico</div><div class="diag">${ex.diagnostico}</div>`:""}
-  ${ex.recomendaciones?`<div class="section">Recomendaciones</div><div class="rec">${ex.recomendaciones}</div>`:""}
+  ${ex.diagnostico?`<div class="section">Dx: Diagnóstico</div><div class="diag">${ex.diagnostico}</div>`:""}
+  ${ex.recomendaciones?`<div class="section">Tx: Tratamiento</div><div class="rec">${ex.recomendaciones}</div>`:""}
   ${ex.proximaRevision?`<div style="margin-top:8px;font-size:11px;color:#2A7C6F"><strong>Próxima revisión:</strong> ${fmtD(ex.proximaRevision)}</div>`:""}
 
   <div class="footer">
@@ -603,9 +603,9 @@ function ExpModal({onClose,onSave,pacienteId,pacs,initial}) {
     <div className="exp-form-section">Hallazgos</div>
     <div className="do-fg"><label className="do-fl">Biomicroscopia</label><textarea className="do-fi do-ta" value={f.biomicroscopia} onChange={ev=>sf({...f,biomicroscopia:ev.target.value})}/></div>
     <div className="do-fg"><label className="do-fl">Fondo de ojo</label><textarea className="do-fi do-ta" value={f.fondoOjo} onChange={ev=>sf({...f,fondoOjo:ev.target.value})}/></div>
-    <div className="exp-form-section">Diagnostico y Plan</div>
-    <div className="do-fg"><label className="do-fl">Diagnostico</label><textarea className="do-fi do-ta" value={f.diagnostico} onChange={ev=>sf({...f,diagnostico:ev.target.value})}/></div>
-    <div className="do-fg"><label className="do-fl">Recomendaciones</label><textarea className="do-fi do-ta" value={f.recomendaciones} onChange={ev=>sf({...f,recomendaciones:ev.target.value})}/></div>
+    <div className="exp-form-section">Dx / Tx</div>
+    <div className="do-fg"><label className="do-fl">Dx: Diagnóstico</label><textarea className="do-fi do-ta" value={f.diagnostico} onChange={ev=>sf({...f,diagnostico:ev.target.value})}/></div>
+    <div className="do-fg"><label className="do-fl">Tx: Tratamiento / Plan</label><textarea className="do-fi do-ta" value={f.recomendaciones} onChange={ev=>sf({...f,recomendaciones:ev.target.value})}/></div>
     <div className="do-fg"><label className="do-fl">Proxima revision</label><input className="do-fi" type="date" value={f.proximaRevision} onChange={ev=>sf({...f,proximaRevision:ev.target.value})}/></div>
     <div className="exp-form-section">Receta para el paciente</div>
     <div className="do-fg"><label className="do-fl">Tipo de lente recomendado</label>
@@ -960,6 +960,17 @@ export default function DianeOpticasCRM() {
           </div>
         </div>
 
+        {/* Barra de búsqueda dedicada en móvil */}
+        <div className="mob-search-bar">
+          {IC.srch}
+          <input placeholder="Buscar paciente, cita, venta..." value={search}
+            onChange={ev=>{setSearch(ev.target.value);if(ev.target.value.length>1)setShowGSearch(true);else setShowGSearch(false);}}
+            onFocus={()=>{if(search.length>1)setShowGSearch(true);}}
+            onBlur={()=>setTimeout(()=>setShowGSearch(false),180)}
+          />
+          {showGSearch&&search.length>1&&<GlobalSearch q={search} pacs={pacs} citas={citas} ventas={ventas} exps={exps} onSelect={(type,item)=>{setShowGSearch(false);setSearch("");if(type==="pac"){setSelPat(item);}else if(type==="cita"){const p=pacs.find(x=>x.id===item.pacienteId);p&&setSelPat(p);setView("citas");}else if(type==="venta"){const p=pacs.find(x=>x.id===item.pacienteId);p&&setSelPat(p);setView("ventas");}else if(type==="exp"){const p=pacs.find(x=>x.id===item.pacienteId);p&&setSelPat(p);}}}/>}
+        </div>
+
         <div className="do-page">
           {/* ── DASHBOARD ── */}
           {view==="dashboard"&&<div>
@@ -1245,7 +1256,7 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
 .mob-sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;animation:doFadeIn .2s ease}
 
 /* FAB — Floating Action Button (mobile) */
-.do-fab{display:none;position:fixed;bottom:24px;right:20px;z-index:90;width:56px;height:56px;border-radius:28px;background:#2A7C6F;color:#fff;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(42,124,111,.35);font-size:24px;align-items:center;justify-content:center;transition:all .2s}
+.do-fab{display:none;position:fixed;bottom:90px;right:20px;z-index:90;width:56px;height:56px;border-radius:28px;background:#2A7C6F;color:#fff;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(42,124,111,.35);font-size:24px;align-items:center;justify-content:center;transition:all .2s}
 .do-fab:active{transform:scale(.94);background:#1f6057}
 
 /* ── Stats ── */
@@ -1346,6 +1357,9 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
 .gsearch-sub{font-size:11px;color:#C4B5A0;margin-top:2px;display:flex;gap:6px;align-items:center}
 .gsearch-icon{font-size:20px;width:34px;text-align:center;flex-shrink:0}
 .gsearch-empty{padding:16px 14px;font-size:13px;color:#C4B5A0;text-align:center}
+.mob-search-bar{display:none;padding:8px 14px;background:#fff;border-bottom:1px solid #E8DFD1;gap:8px;align-items:center}
+.mob-search-bar input{flex:1;padding:10px 12px;border:1px solid #E8DFD1;border-radius:10px;font-family:inherit;font-size:16px;color:#4A3F35;outline:none;background:#FAF7F2}
+.mob-search-bar input:focus{border-color:#2A7C6F}
 .mob-back-bar{display:none;padding:10px 16px;border-bottom:1px solid #F3EDE4;flex-shrink:0;background:#FDFBF8}
 .mob-back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:#2A7C6F;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;padding:6px 8px;border-radius:8px;min-height:40px}
 .mob-back-btn:active{background:#E8F5F2}
@@ -1415,7 +1429,7 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
 .do-empty p{font-size:12px}
 
 /* ── Bottom nav (mobile) ── */
-.mob-bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;background:#2D2520;z-index:99;flex-direction:row;border-top:1px solid rgba(255,255,255,.08);padding-bottom:env(safe-area-inset-bottom)}
+.mob-bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;background:#2D2520;z-index:110;flex-direction:row;border-top:1px solid rgba(255,255,255,.08);padding-bottom:env(safe-area-inset-bottom)}
 .mob-bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px 8px;border:none;background:none;cursor:pointer;color:rgba(255,255,255,.45);font-size:10px;font-family:inherit;gap:3px;min-height:56px;transition:color .15s;position:relative}
 .mob-bn-item.active{color:#fff}
 .mob-bn-item svg{opacity:.7}
@@ -1433,9 +1447,10 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
   /* Sidebar oculto — se usa bottom nav */
   .do-side{transform:translateX(-100%)}
   .do-side.open{transform:translateX(0);z-index:150}
-  .do-main{margin-left:0;padding-bottom:70px}
+  .do-main{margin-left:0;padding-bottom:80px}
   .do-top{padding:10px 14px}
   .do-page{padding:12px 14px}
+  .mob-search-bar{display:flex !important}
   .do-mob-tog{display:flex !important}
   .do-search{width:100%}
   .mob-sidebar-overlay{display:block}
@@ -1474,8 +1489,9 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
   .mob-bottomnav{display:flex !important}
   .do-fab{display:flex !important}
 
-  /* Ocultar top-act buttons (están en FAB) */
-  .do-top-act .do-btn:not(.do-btn-pri){display:none}
+  /* Ocultar todos los botones de acción en top bar — FAB y bottom nav los reemplazan */
+  .do-top-act .do-btn{display:none}
+  .do-top-act .do-search{display:none}
 
   /* Rx grid más compacto */
   .rx-grid{font-size:11px}
