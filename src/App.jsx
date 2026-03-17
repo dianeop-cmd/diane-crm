@@ -1069,9 +1069,24 @@ export default function DianeOpticasCRM() {
   const citasSem   = citas.filter(c=>{const d=dUntil(c.fecha);return d>=0&&d<=7;}).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
   const citasHoy   = citas.filter(c=>c.fecha===today());
   const segsPend   = segs.filter(s=>s.estado==="Pendiente");
-  const sinCita    = pacs.filter(p=>!p.proximaCita&&dUntil(p.ultimaVisita)<-90);
-  const alerts     = [...segsPend.filter(s=>dUntil(s.fechaSeg)<=2).map(s=>({t:"urgent",title:"Seguimiento: "+s.paciente,sub:s.mensaje})),...sinCita.map(p=>({t:"reminder",title:p.nombre+" - "+Math.abs(dUntil(p.ultimaVisita))+"d sin visita",sub:"Ultima: "+fmtD(p.ultimaVisita)}))];
-  const filtP      = pacs.filter(p=>(pF==="Todos"||p.tipo===pF)&&(!search||p.nombre.toLowerCase().includes(search.toLowerCase())||p.telefono.includes(search)));
+  // Pacientes sin visita en +6 meses (180 días) y sin cita próxima
+  const sinCita    = pacs.filter(p=>{
+    const diasSinVisita = p.ultimaVisita ? -dUntil(p.ultimaVisita) : 999;
+    const sinProxima    = !p.proximaCita || dUntil(p.proximaCita) < 0;
+    return diasSinVisita >= 180 && sinProxima;
+  });
+  // Pacientes nunca vistos (sin ultimaVisita)
+  const sinVisitaEver = pacs.filter(p=>!p.ultimaVisita&&!p.proximaCita);
+  const alerts = [
+    ...segsPend.filter(s=>dUntil(s.fechaSeg)<=2).map(s=>({t:"urgent",title:"Seguimiento pendiente: "+s.paciente,sub:s.mensaje})),
+    ...sinCita.map(p=>({t:"reminder",title:p.nombre+" — sin visita en "+Math.round(-dUntil(p.ultimaVisita)/30)+" meses",sub:"Última visita: "+fmtD(p.ultimaVisita)+" · Sin cita agendada",pac:p})),
+    ...sinVisitaEver.map(p=>({t:"reminder",title:p.nombre+" — nunca ha visitado",sub:"Registrado el "+fmtD(p.ultimaVisita||"")+" · Sin expediente",pac:p})),
+  ];
+  const filtP      = pacs.filter(p=>{
+    const matchSearch = !search||p.nombre.toLowerCase().includes(search.toLowerCase())||p.telefono.includes(search);
+    if (pF==="Sin revisita") return matchSearch && (!p.ultimaVisita || -dUntil(p.ultimaVisita)>=180) && (!p.proximaCita||dUntil(p.proximaCita)<0);
+    return (pF==="Todos"||p.tipo===pF) && matchSearch;
+  });
   const filtC      = citas.filter(c=>cF==="Todas"||c.estado===cF).sort((a,b)=>(a.fecha||"").localeCompare(b.fecha||""));
   const filtS      = segs.filter(s=>sF==="Todos"||s.estado===sF).sort((a,b)=>(a.fechaSeg||"").localeCompare(b.fechaSeg||""));
   const filtV      = ventas.filter(v=>vF==="Todas"||v.metodo===vF).sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
@@ -1147,7 +1162,22 @@ export default function DianeOpticasCRM() {
               <div className="do-stat s4" style={{cursor:"pointer"}} onClick={()=>setView("ventas")}><div className="do-stat-label">Ventas mes</div><div className="do-stat-val">{"$"+totalMes.toLocaleString()}</div><div className="do-stat-sub">{ventasMes.length} ventas →</div></div>
             </div>
             {can(role,"ventas")&&<VentasChart ventas={ventas}/>}
-            {alerts.length>0&&<div style={{marginBottom:24}}><h3 className="sec-title">Atencion Requerida</h3>{alerts.map((a,i)=><div key={i} className={"do-alert "+a.t}><div className={"do-alert-ic "+(a.t==="urgent"?"u":"r")}>{IC.alrt}</div><div className="do-alert-c"><div className="do-alert-t">{a.title}</div><div className="do-alert-s">{a.sub}</div></div></div>)}</div>}
+            {alerts.length>0&&<div style={{marginBottom:20}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <h3 className="sec-title" style={{marginBottom:0}}>Atención Requerida</h3>
+                <span style={{fontSize:11,color:"#8B7355",background:"#F3EDE4",padding:"3px 10px",borderRadius:20,fontWeight:600}}>{alerts.length} alertas</span>
+              </div>
+              {alerts.map((a,i)=><div key={i} className={"do-alert "+a.t} style={{marginBottom:6,cursor:a.pac?"pointer":"default"}} onClick={()=>a.pac&&setSelPat(a.pac)}>
+                <div className={"do-alert-ic "+(a.t==="urgent"?"u":"r")}>{IC.alrt}</div>
+                <div className="do-alert-c">
+                  <div className="do-alert-t">{a.title}</div>
+                  <div className="do-alert-s">{a.sub}</div>
+                </div>
+                {a.pac&&<div style={{flexShrink:0}}>
+                  <WA phone={a.pac.telefono} msg={"Hola "+a.pac.nombre.split(" ")[0]+" 👋, en Diane Ópticas le recordamos que ya pasaron varios meses desde su última visita. ¿Le agendamos una revisión?"}/>
+                </div>}
+              </div>)}
+            </div>}
             <div className="do-tbl">
               <div className="do-tbl-hd"><h3>Proximas Citas</h3><button className="do-btn do-btn-out" style={{fontSize:12}} onClick={()=>setView("citas")}>Ver agenda →</button></div>
               {citasSem.length>0?<>
@@ -1175,7 +1205,7 @@ export default function DianeOpticasCRM() {
 
           {/* ── PACIENTES ── */}
           {view==="pacientes"&&<div className="do-tbl">
-            <div className="do-tbl-hd"><h3>Pacientes ({filtP.length})</h3><div className="do-filters">{["Todos","Nuevo","Recurrente","Convenio"].map(f=><Chip key={f} label={f} active={pF===f} onClick={()=>setPF(f)}/>)}</div></div>
+            <div className="do-tbl-hd"><h3>Pacientes ({filtP.length})</h3><div className="do-filters">{["Todos","Nuevo","Recurrente","Convenio","Sin revisita"].map(f=><Chip key={f} label={f} active={pF===f} onClick={()=>setPF(f)}/>)}</div></div>
             <div className="mob-list">{filtP.map((p,i)=><div key={p.id} className="mob-card" onClick={()=>setSelPat(p)}>
               <Av name={p.nombre} i={i}/>
               <div className="mob-card-body">
