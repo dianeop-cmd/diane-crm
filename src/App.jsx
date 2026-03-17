@@ -148,6 +148,7 @@ const IC = {
   dl:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
   chev:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>,
   print:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+  receta:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/><polyline points="9 9 10 9"/></svg>,
 };
 
 // ── Shared small components ──────────────────────────────────────────────────
@@ -211,13 +212,21 @@ function ExpedienteCard({ex,archivos,expanded,onToggle,onEdit,onDelete,role,paci
       <div><div className="exp-card-date">{fmtD(ex.fecha)}</div><div className="exp-card-motivo">{ex.motivo}</div><div className="exp-card-opto">{ex.optometrista}</div></div>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         {isA&&<span className="do-tag do-tag-pendiente" style={{fontSize:10}}>Alerta</span>}
-        <button className="do-btn-ic" title="Imprimir receta" onClick={e=>{e.stopPropagation();printReceta(ex,paciente);}}>{IC.print}</button>
+        <button className="do-btn-ic" title="Generar receta para paciente" style={{background:"#E8F5F2",borderColor:"#2A7C6F",color:"#2A7C6F"}} onClick={e=>{e.stopPropagation();generarReceta(ex,paciente);}}>{IC.receta}</button>
+        <button className="do-btn-ic" title="Imprimir historia clínica" onClick={e=>{e.stopPropagation();printReceta(ex,paciente);}}>{IC.print}</button>
         {can(role,"expediente")&&<button className="do-btn-ic" title="Editar" onClick={e=>{e.stopPropagation();onEdit(ex)}}>{IC.pen}</button>}
         {can(role,"expediente")&&<button className="do-btn-ic do-btn-ic-d" title="Borrar" onClick={e=>{e.stopPropagation();onDelete(ex.id)}}>{IC.trash}</button>}
         <span className={"exp-chev"+(expanded?" exp-chev-open":"")}>{IC.chev}</span>
       </div>
     </div>
     {expanded&&<div className="exp-card-body">
+      {(ex.avscOD||ex.avscOI)&&<div className="exp-section"><div className="exp-sec-title">Agudeza Visual</div>
+        <div className="rx-grid" style={{gridTemplateColumns:"40px repeat(3,1fr)"}}>
+          <div className="rx-header"></div><div className="rx-header">AVSC</div><div className="rx-header">PH</div><div className="rx-header">AVCC</div>
+          <div className="rx-eye">OD</div><RxCell val={ex.avscOD}/><RxCell val={ex.phOD}/><RxCell val={ex.avccOD}/>
+          <div className="rx-eye">OI</div><RxCell val={ex.avscOI}/><RxCell val={ex.phOI}/><RxCell val={ex.avccOI}/>
+        </div>
+      </div>}
       <div className="exp-section"><div className="exp-sec-title">Refraccion Final</div>
         <div className="rx-grid"><div className="rx-header"> </div><div className="rx-header">Esf</div><div className="rx-header">Cil</div><div className="rx-header">Eje</div><div className="rx-header">AV</div><div className="rx-header">Add</div>
         <div className="rx-eye">OD</div><RxCell val={ex.rxOD.esf}/><RxCell val={ex.rxOD.cil}/><RxCell val={ex.rxOD.eje}/><RxCell val={ex.rxOD.av}/><RxCell val={ex.addOD}/>
@@ -228,6 +237,7 @@ function ExpedienteCard({ex,archivos,expanded,onToggle,onEdit,onDelete,role,paci
       {ex.fondoOjo&&<div className="exp-section"><div className="exp-sec-title">Fondo de Ojo</div><div className="exp-text">{ex.fondoOjo}</div></div>}
       <div className="exp-section"><div className="exp-sec-title">Diagnostico</div><div className={"exp-diag"+(isA?" exp-diag-alert":"")}>{ex.diagnostico}</div></div>
       {ex.recomendaciones&&<div className="exp-section"><div className="exp-sec-title">Recomendaciones</div><div className="exp-text">{ex.recomendaciones}</div></div>}
+      {ex.tipoLente&&<div className="exp-section"><div className="exp-sec-title">Tipo de lente</div><span className="do-tag do-tag-recurrente">{ex.tipoLente}</span></div>}
       <div className="exp-section" style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div className="exp-sec-title" style={{marginBottom:0}}>Proxima Revision</div><span style={{fontWeight:600,color:"#2A7C6F",fontSize:14}}>{fmtD(ex.proximaRevision)}</span></div>
       {exA.length>0&&<div className="exp-section"><div className="exp-sec-title">Archivos ({exA.length})</div>{exA.map(a=><div key={a.id} className="arc-row"><div className="arc-icon">{a.tipo==="Imagen"?"🖼":"📄"}</div><div className="arc-info"><div className="arc-name">{a.nombre}</div><div className="arc-meta">{a.categoria} - {a.tamano}</div></div><a href={a.url} target="_blank" rel="noopener noreferrer" className="do-btn do-btn-out" style={{fontSize:11,padding:"4px 10px"}}>{IC.dl} Ver</a></div>)}</div>}
     </div>}
@@ -274,6 +284,14 @@ function printReceta(ex, pac) {
   <div class="row"><span><span class="label">Fecha: </span><span class="val">${fmtD(ex.fecha)}</span></span><span><span class="label">Optometrista: </span><span class="val">${ex.optometrista||"Lic. Opt. Diane"}</span></span></div>
   ${ex.motivo?`<div class="row"><span class="label">Motivo: </span><span style="font-size:12px">${ex.motivo}</span></div>`:""}
 
+  ${(ex.avscOD||ex.avscOI)?`<div class="section">Agudeza Visual</div>
+  <table>
+    <thead><tr><th></th><th>AVSC</th><th>PH</th><th>AVCC</th></tr></thead>
+    <tbody>
+      <tr><td class="eye-label">OD</td><td>${ex.avscOD||"—"}</td><td>${ex.phOD||"—"}</td><td>${ex.avccOD||"—"}</td></tr>
+      <tr><td class="eye-label">OI</td><td>${ex.avscOI||"—"}</td><td>${ex.phOI||"—"}</td><td>${ex.avccOI||"—"}</td></tr>
+    </tbody>
+  </table>`:""}
   <div class="section">Refracción</div>
   <table>
     <thead><tr><th></th><th>Esfera</th><th>Cilindro</th><th>Eje</th><th>AV</th><th>Adición</th></tr></thead>
@@ -300,6 +318,124 @@ function printReceta(ex, pac) {
 <script>window.onload=()=>window.print();<\/script>
 </body></html>`;
   const w = window.open("","_blank","width=600,height=500");
+  w.document.write(html);
+  w.document.close();
+}
+
+
+// ── Generar receta para paciente ─────────────────────────────────────────────
+function generarReceta(ex, pac) {
+  const nombre   = pac ? pac.nombre : "Paciente";
+  const tel      = pac ? (pac.telefono||"") : "";
+  const email    = pac ? (pac.email||"") : "";
+  const fechaNac = pac ? fmtD(pac.fechaNac) : "";
+  const vigencia = ex.proximaRevision
+    ? `Válida hasta: ${fmtD(ex.proximaRevision)}`
+    : "Válida por 12 meses a partir de la fecha de emisión";
+
+  const rxRow = (label, esf, cil, eje, add) => `
+    <tr>
+      <td class="eye">${label}</td>
+      <td>${esf||"—"}</td>
+      <td>${cil||"—"}</td>
+      <td>${eje||"—"}</td>
+      <td>${add||"—"}</td>
+    </tr>`;
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<title>Receta Optométrica — ${nombre}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@400;500;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'DM Sans',sans-serif;color:#2D2520;background:#f5f5f5;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+  .card{background:#fff;width:148mm;padding:12mm 14mm;box-shadow:0 4px 24px rgba(0,0,0,.12);border-radius:4px;position:relative;overflow:hidden}
+  .accent-bar{position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#2A7C6F,#4A9B8C)}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;padding-top:4px}
+  .brand h1{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:#2A7C6F;line-height:1}
+  .brand p{font-size:9px;color:#8B7355;letter-spacing:1.5px;text-transform:uppercase;margin-top:3px}
+  .brand .contact{font-size:10px;color:#8B7355;margin-top:6px;line-height:1.5}
+  .badge{background:#E8F5F2;color:#2A7C6F;font-size:10px;font-weight:700;padding:4px 10px;border-radius:4px;letter-spacing:.5px;text-transform:uppercase;border:1px solid #b5d9cc}
+  .divider{border:none;border-top:1.5px solid #e8dfd1;margin:10px 0}
+  .pac-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin-bottom:10px}
+  .pac-field{font-size:11px}
+  .pac-label{color:#8B7355;font-size:9px;text-transform:uppercase;letter-spacing:.8px;font-weight:600;display:block;margin-bottom:1px}
+  .pac-val{font-weight:600;color:#2D2520;font-size:12px}
+  .section-title{font-size:9px;font-weight:700;color:#2A7C6F;text-transform:uppercase;letter-spacing:1.5px;border-bottom:1.5px solid #2A7C6F;padding-bottom:3px;margin:10px 0 7px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  thead tr{background:#2A7C6F}
+  thead th{color:#fff;font-size:9px;text-transform:uppercase;letter-spacing:.8px;padding:6px 8px;font-weight:600;text-align:center}
+  thead th:first-child{text-align:left}
+  tbody tr:nth-child(odd){background:#f8fbfa}
+  tbody td{padding:8px;text-align:center;font-weight:600;font-size:13px;color:#2D2520;border-bottom:1px solid #eee}
+  .eye{font-weight:700;color:#2A7C6F;text-align:left;font-size:12px}
+  .dnp-row{display:flex;gap:24px;margin-top:6px;font-size:11px}
+  .dnp-item{display:flex;gap:6px;align-items:center}
+  .dnp-label{color:#8B7355;font-weight:600}
+  .dnp-val{font-weight:700;color:#2D2520}
+  .lente-badge{display:inline-block;background:#EDF3F9;color:#4A7FB5;border:1px solid #b5c9e0;border-radius:4px;padding:5px 12px;font-size:12px;font-weight:600;margin-top:2px}
+  .obs-box{background:#faf7f2;border:1px solid #e8dfd1;border-radius:6px;padding:8px 10px;font-size:11.5px;line-height:1.6;color:#4A3F35;margin-top:4px}
+  .vigencia{background:#fff8e1;border:1px solid #ffe082;border-radius:4px;padding:6px 10px;font-size:10px;font-weight:600;color:#7a6000;display:flex;align-items:center;gap:6px;margin-top:10px}
+  .footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:12px}
+  .fecha-emit{font-size:9px;color:#C4B5A0}
+  .firma-area{text-align:center}
+  .firma-line{width:130px;border-top:1.5px solid #2D2520;margin:28px auto 0;padding-top:5px;font-size:10px;color:#4A3F35;font-weight:500}
+  .firma-cedula{font-size:9px;color:#8B7355;margin-top:2px}
+  @media print{
+    body{background:#fff;padding:0;display:block}
+    .card{box-shadow:none;border-radius:0;width:100%;padding:10mm 12mm}
+    @page{size:A5 portrait;margin:0}
+  }
+</style></head><body>
+<div class="card">
+  <div class="accent-bar"></div>
+
+  <div class="header">
+    <div class="brand">
+      <h1>Diane Ópticas</h1>
+      <p>Centro de Optometría</p>
+      <div class="contact">Plaza Escala · Morelia, Michoacán<br/>dianeopticas.com</div>
+    </div>
+    <div class="badge">📋 Receta Optométrica</div>
+  </div>
+
+  <hr class="divider"/>
+
+  <div class="pac-grid">
+    <div class="pac-field"><span class="pac-label">Paciente</span><span class="pac-val">${nombre}</span></div>
+    <div class="pac-field"><span class="pac-label">Fecha</span><span class="pac-val">${fmtD(ex.fecha)}</span></div>
+    ${fechaNac?`<div class="pac-field"><span class="pac-label">Fecha de nacimiento</span><span class="pac-val">${fechaNac}</span></div>`:""}
+    ${tel?`<div class="pac-field"><span class="pac-label">Teléfono</span><span class="pac-val">${tel}</span></div>`:""}
+  </div>
+
+  <div class="section-title">Prescripción</div>
+  <table>
+    <thead><tr><th></th><th>Esfera</th><th>Cilindro</th><th>Eje</th><th>Adición</th></tr></thead>
+    <tbody>
+      ${rxRow("OD",ex.rxOD_esf||ex.rxOD?.esf,ex.rxOD_cil||ex.rxOD?.cil,ex.rxOD_eje||ex.rxOD?.eje,ex.addOD)}
+      ${rxRow("OI",ex.rxOI_esf||ex.rxOI?.esf,ex.rxOI_cil||ex.rxOI?.cil,ex.rxOI_eje||ex.rxOI?.eje,ex.addOI)}
+    </tbody>
+  </table>
+
+  ${ex.dnp?`<div class="dnp-row"><div class="dnp-item"><span class="dnp-label">DNP OD:</span><span class="dnp-val">${ex.dnp.split("/")[0]||ex.dnp} mm</span></div>${ex.dnp.includes("/")?`<div class="dnp-item"><span class="dnp-label">DNP OI:</span><span class="dnp-val">${ex.dnp.split("/")[1]} mm</span></div>`:""}</div>`:""}
+
+  ${ex.tipoLente?`<div class="section-title">Tipo de lente</div><div><span class="lente-badge">✦ ${ex.tipoLente}</span></div>`:""}
+
+  ${ex.obsReceta?`<div class="section-title">Indicaciones</div><div class="obs-box">${ex.obsReceta}</div>`:""}
+
+  <div class="vigencia">⏱ ${vigencia}</div>
+
+  <div class="footer">
+    <div class="fecha-emit">Emitida el ${new Date().toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}</div>
+    <div class="firma-area">
+      <div class="firma-line">${ex.optometrista||"Lic. Opt. Diane"}</div>
+      <div class="firma-cedula">Optometrista · Cédula profesional</div>
+    </div>
+  </div>
+</div>
+<script>window.onload=()=>{window.print();}<\/script>
+</body></html>`;
+
+  const w = window.open("","_blank","width=700,height=600");
   w.document.write(html);
   w.document.close();
 }
@@ -411,12 +547,16 @@ function ExpModal({onClose,onSave,pacienteId,pacs,initial}) {
     dnp: initial.dnp||"", pioOD: initial.pioOD||"", pioOI: initial.pioOI||"",
     biomicroscopia: initial.biomicroscopia||"", fondoOjo: initial.fondoOjo||"",
     diagnostico: initial.diagnostico||"", recomendaciones: initial.recomendaciones||"",
-    proximaRevision: initial.proximaRevision||"", archivosIds: initial.archivosIds||[]
+    proximaRevision: initial.proximaRevision||"", tipoLente: initial.tipoLente||"", obsReceta: initial.obsReceta||"",
+    avscOD: initial.avscOD||"", phOD: initial.phOD||"", avccOD: initial.avccOD||"",
+    avscOI: initial.avscOI||"", phOI: initial.phOI||"", avccOI: initial.avccOI||"",
+    archivosIds: initial.archivosIds||[]
   } : {
     pacienteId: pacienteId||"", fecha: today(), optometrista:"Lic. Opt. Diane",
     motivo:"", rxOD:{...blank}, rxOI:{...blank},
     addOD:"",addOI:"",dnp:"",pioOD:"",pioOI:"",
-    biomicroscopia:"",fondoOjo:"",diagnostico:"",recomendaciones:"",proximaRevision:"",archivosIds:[]
+    avscOD:"",phOD:"",avccOD:"",avscOI:"",phOI:"",avccOI:"",
+    biomicroscopia:"",fondoOjo:"",diagnostico:"",recomendaciones:"",proximaRevision:"",tipoLente:"",obsReceta:"",archivosIds:[]
   });
   const upRx = (eye,field,val) => sf({...f,[eye]:{...f[eye],[field]:val}});
   const isEdit = !!initial;
@@ -429,6 +569,31 @@ function ExpModal({onClose,onSave,pacienteId,pacs,initial}) {
     {!pacienteId&&<div className="do-fg"><label className="do-fl">Paciente *</label><select className="do-fi" value={f.pacienteId} onChange={ev=>sf({...f,pacienteId:ev.target.value})}><option value="">Seleccionar...</option>{pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}</select></div>}
     <div className="do-fr"><div className="do-fg"><label className="do-fl">Fecha</label><input className="do-fi" type="date" value={f.fecha} onChange={ev=>sf({...f,fecha:ev.target.value})}/></div><div className="do-fg"><label className="do-fl">Optometrista</label><input className="do-fi" value={f.optometrista} onChange={ev=>sf({...f,optometrista:ev.target.value})}/></div></div>
     <div className="do-fg"><label className="do-fl">Motivo *</label><input className="do-fi" value={f.motivo} onChange={ev=>sf({...f,motivo:ev.target.value})} placeholder="Revision anual, dolor de cabeza..."/></div>
+    <div className="exp-form-section">Agudeza Visual</div>
+    <div style={{overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,marginBottom:8}}>
+        <thead><tr>
+          <th style={{background:"#FAF7F2",padding:"6px 8px",fontWeight:600,color:"#8B7355",fontSize:10,textTransform:"uppercase",letterSpacing:1,textAlign:"center",border:"1px solid #E8DFD1"}}></th>
+          <th style={{background:"#FAF7F2",padding:"6px 8px",fontWeight:600,color:"#8B7355",fontSize:10,textTransform:"uppercase",letterSpacing:1,textAlign:"center",border:"1px solid #E8DFD1"}}>AVSC</th>
+          <th style={{background:"#FAF7F2",padding:"6px 8px",fontWeight:600,color:"#8B7355",fontSize:10,textTransform:"uppercase",letterSpacing:1,textAlign:"center",border:"1px solid #E8DFD1"}}>PH</th>
+          <th style={{background:"#FAF7F2",padding:"6px 8px",fontWeight:600,color:"#8B7355",fontSize:10,textTransform:"uppercase",letterSpacing:1,textAlign:"center",border:"1px solid #E8DFD1"}}>AVCC</th>
+        </tr></thead>
+        <tbody>
+          <tr>
+            <td style={{background:"#FAF7F2",padding:"6px 8px",fontWeight:700,color:"#2A7C6F",textAlign:"center",border:"1px solid #E8DFD1",fontSize:12}}>OD</td>
+            <td style={{border:"1px solid #E8DFD1",padding:4}}><input className="do-fi" style={{textAlign:"center",padding:"6px 4px",fontSize:13}} placeholder="20/20" value={f.avscOD||""} onChange={ev=>sf({...f,avscOD:ev.target.value})}/></td>
+            <td style={{border:"1px solid #E8DFD1",padding:4}}><input className="do-fi" style={{textAlign:"center",padding:"6px 4px",fontSize:13}} placeholder="20/20" value={f.phOD||""} onChange={ev=>sf({...f,phOD:ev.target.value})}/></td>
+            <td style={{border:"1px solid #E8DFD1",padding:4}}><input className="do-fi" style={{textAlign:"center",padding:"6px 4px",fontSize:13}} placeholder="20/20" value={f.avccOD||""} onChange={ev=>sf({...f,avccOD:ev.target.value})}/></td>
+          </tr>
+          <tr>
+            <td style={{background:"#FAF7F2",padding:"6px 8px",fontWeight:700,color:"#2A7C6F",textAlign:"center",border:"1px solid #E8DFD1",fontSize:12}}>OI</td>
+            <td style={{border:"1px solid #E8DFD1",padding:4}}><input className="do-fi" style={{textAlign:"center",padding:"6px 4px",fontSize:13}} placeholder="20/20" value={f.avscOI||""} onChange={ev=>sf({...f,avscOI:ev.target.value})}/></td>
+            <td style={{border:"1px solid #E8DFD1",padding:4}}><input className="do-fi" style={{textAlign:"center",padding:"6px 4px",fontSize:13}} placeholder="20/20" value={f.phOI||""} onChange={ev=>sf({...f,phOI:ev.target.value})}/></td>
+            <td style={{border:"1px solid #E8DFD1",padding:4}}><input className="do-fi" style={{textAlign:"center",padding:"6px 4px",fontSize:13}} placeholder="20/20" value={f.avccOI||""} onChange={ev=>sf({...f,avccOI:ev.target.value})}/></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <div className="exp-form-section">Refraccion</div>
     <div className="rx-form">
       <div className="rx-form-row"><span className="rx-form-label">OD</span><input className="do-fi rx-fi" placeholder="Esf" value={f.rxOD.esf} onChange={ev=>upRx("rxOD","esf",ev.target.value)}/><input className="do-fi rx-fi" placeholder="Cil" value={f.rxOD.cil} onChange={ev=>upRx("rxOD","cil",ev.target.value)}/><input className="do-fi rx-fi" placeholder="Eje" value={f.rxOD.eje} onChange={ev=>upRx("rxOD","eje",ev.target.value)}/><input className="do-fi rx-fi" placeholder="AV" value={f.rxOD.av} onChange={ev=>upRx("rxOD","av",ev.target.value)}/><input className="do-fi rx-fi" placeholder="Add" value={f.addOD} onChange={ev=>sf({...f,addOD:ev.target.value})}/></div>
@@ -442,6 +607,22 @@ function ExpModal({onClose,onSave,pacienteId,pacs,initial}) {
     <div className="do-fg"><label className="do-fl">Diagnostico</label><textarea className="do-fi do-ta" value={f.diagnostico} onChange={ev=>sf({...f,diagnostico:ev.target.value})}/></div>
     <div className="do-fg"><label className="do-fl">Recomendaciones</label><textarea className="do-fi do-ta" value={f.recomendaciones} onChange={ev=>sf({...f,recomendaciones:ev.target.value})}/></div>
     <div className="do-fg"><label className="do-fl">Proxima revision</label><input className="do-fi" type="date" value={f.proximaRevision} onChange={ev=>sf({...f,proximaRevision:ev.target.value})}/></div>
+    <div className="exp-form-section">Receta para el paciente</div>
+    <div className="do-fg"><label className="do-fl">Tipo de lente recomendado</label>
+      <select className="do-fi" value={f.tipoLente||""} onChange={ev=>sf({...f,tipoLente:ev.target.value})}>
+        <option value="">— Sin especificar —</option>
+        <option>Monofocal</option>
+        <option>Bifocal</option>
+        <option>Progresivo</option>
+        <option>Lentes de contacto</option>
+        <option>Lentes de contacto multifocal</option>
+        <option>Solo armazón (sin graduación)</option>
+        <option>No requiere corrección</option>
+      </select>
+    </div>
+    <div className="do-fg"><label className="do-fl">Observaciones para el paciente</label>
+      <textarea className="do-fi do-ta" value={f.obsReceta||""} onChange={ev=>sf({...f,obsReceta:ev.target.value})} placeholder="Ej: Use sus lentes en todo momento. Revisión en 12 meses."/>
+    </div>
   </Modal>;
 }
 
@@ -680,6 +861,9 @@ export default function DianeOpticasCRM() {
     ...ex,
     rxOD_esf:ex.rxOD?.esf||"", rxOD_cil:ex.rxOD?.cil||"", rxOD_eje:ex.rxOD?.eje||"", rxOD_av:ex.rxOD?.av||"",
     rxOI_esf:ex.rxOI?.esf||"", rxOI_cil:ex.rxOI?.cil||"", rxOI_eje:ex.rxOI?.eje||"", rxOI_av:ex.rxOI?.av||"",
+    tipoLente: ex.tipoLente||"", obsReceta: ex.obsReceta||"",
+    avscOD: ex.avscOD||"", phOD: ex.phOD||"", avccOD: ex.avccOD||"",
+    avscOI: ex.avscOI||"", phOI: ex.phOI||"", avccOI: ex.avccOI||"",
     archivosIds:(ex.archivosIds||[]).join(","),
   });
   const saveExp = async (f) => {
