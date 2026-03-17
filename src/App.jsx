@@ -147,6 +147,7 @@ const IC = {
   up:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>,
   dl:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
   chev:<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>,
+  print:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
 };
 
 // ── Shared small components ──────────────────────────────────────────────────
@@ -202,7 +203,7 @@ function Modal({title,onClose,children,footer,wide}) {
 }
 
 // ── Expediente card ──────────────────────────────────────────────────────────
-function ExpedienteCard({ex,archivos,expanded,onToggle,onEdit,onDelete,role}) {
+function ExpedienteCard({ex,archivos,expanded,onToggle,onEdit,onDelete,role,paciente}) {
   const exA = archivos.filter(a=>(ex.archivosIds||[]).includes(a.id));
   const isA = ex.diagnostico && ex.diagnostico.includes("SOSPECHA");
   return <div className={"exp-card"+(expanded?" exp-open":"")}>
@@ -210,6 +211,7 @@ function ExpedienteCard({ex,archivos,expanded,onToggle,onEdit,onDelete,role}) {
       <div><div className="exp-card-date">{fmtD(ex.fecha)}</div><div className="exp-card-motivo">{ex.motivo}</div><div className="exp-card-opto">{ex.optometrista}</div></div>
       <div style={{display:"flex",alignItems:"center",gap:8}}>
         {isA&&<span className="do-tag do-tag-pendiente" style={{fontSize:10}}>Alerta</span>}
+        <button className="do-btn-ic" title="Imprimir receta" onClick={e=>{e.stopPropagation();printReceta(ex,paciente);}}>{IC.print}</button>
         {can(role,"expediente")&&<button className="do-btn-ic" title="Editar" onClick={e=>{e.stopPropagation();onEdit(ex)}}>{IC.pen}</button>}
         {can(role,"expediente")&&<button className="do-btn-ic do-btn-ic-d" title="Borrar" onClick={e=>{e.stopPropagation();onDelete(ex.id)}}>{IC.trash}</button>}
         <span className={"exp-chev"+(expanded?" exp-chev-open":"")}>{IC.chev}</span>
@@ -232,8 +234,95 @@ function ExpedienteCard({ex,archivos,expanded,onToggle,onEdit,onDelete,role}) {
   </div>;
 }
 
+
+
+// ── Imprimir receta ───────────────────────────────────────────────────────────
+function printReceta(ex, pac) {
+  const nombre = pac ? pac.nombre : "Paciente";
+  const tel    = pac ? (pac.telefono||"") : "";
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<title>Receta Optométrica — ${nombre}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@400;500;600&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'DM Sans',sans-serif;color:#2D2520;background:#fff;padding:0}
+  .page{width:148mm;min-height:100mm;margin:0 auto;padding:10mm 12mm;border:1px solid #e0d8cc}
+  .logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#2A7C6F;margin-bottom:2px}
+  .tagline{font-size:10px;color:#8B7355;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
+  .divider{border:none;border-top:2px solid #2A7C6F;margin:8px 0}
+  .row{display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px}
+  .label{color:#8B7355;font-weight:600;text-transform:uppercase;letter-spacing:.8px;font-size:10px}
+  .val{font-size:13px;font-weight:500}
+  .section{margin:10px 0 6px;font-size:10px;font-weight:700;color:#2A7C6F;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #e8dfd1;padding-bottom:3px}
+  table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}
+  th{background:#e8f5f2;color:#2A7C6F;font-size:9px;text-transform:uppercase;letter-spacing:.8px;padding:5px 8px;text-align:center}
+  td{padding:6px 8px;text-align:center;border-bottom:1px solid #f3ede4;font-weight:500}
+  .eye-label{font-weight:700;color:#2D2520;text-align:left}
+  .diag{background:#faf7f2;border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.5;margin-bottom:6px}
+  .rec{font-size:11px;color:#4A3F35;line-height:1.5}
+  .footer{margin-top:10px;display:flex;justify-content:space-between;align-items:flex-end}
+  .firma{text-align:center}
+  .firma-line{border-top:1px solid #2D2520;padding-top:4px;font-size:10px;color:#8B7355;margin-top:24px;width:120px}
+  .fecha{font-size:10px;color:#8B7355}
+  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{border:none;width:100%;padding:8mm}}
+</style></head><body>
+<div class="page">
+  <div class="logo">Diane Ópticas</div>
+  <div class="tagline">Centro de Optometría · Plaza Escala, Morelia</div>
+  <hr class="divider"/>
+  <div class="row"><span><span class="label">Paciente: </span><span class="val">${nombre}</span></span><span><span class="label">Tel: </span><span class="val">${tel}</span></span></div>
+  <div class="row"><span><span class="label">Fecha: </span><span class="val">${fmtD(ex.fecha)}</span></span><span><span class="label">Optometrista: </span><span class="val">${ex.optometrista||"Lic. Opt. Diane"}</span></span></div>
+  ${ex.motivo?`<div class="row"><span class="label">Motivo: </span><span style="font-size:12px">${ex.motivo}</span></div>`:""}
+
+  <div class="section">Refracción</div>
+  <table>
+    <thead><tr><th></th><th>Esfera</th><th>Cilindro</th><th>Eje</th><th>AV</th><th>Adición</th></tr></thead>
+    <tbody>
+      <tr><td class="eye-label">OD</td><td>${ex.rxOD_esf||ex.rxOD?.esf||"—"}</td><td>${ex.rxOD_cil||ex.rxOD?.cil||"—"}</td><td>${ex.rxOD_eje||ex.rxOD?.eje||"—"}</td><td>${ex.rxOD_av||ex.rxOD?.av||"—"}</td><td>${ex.addOD||"—"}</td></tr>
+      <tr><td class="eye-label">OI</td><td>${ex.rxOI_esf||ex.rxOI?.esf||"—"}</td><td>${ex.rxOI_cil||ex.rxOI?.cil||"—"}</td><td>${ex.rxOI_eje||ex.rxOI?.eje||"—"}</td><td>${ex.rxOI_av||ex.rxOI?.av||"—"}</td><td>${ex.addOI||"—"}</td></tr>
+    </tbody>
+  </table>
+  <div class="row">
+    ${ex.dnp?`<span><span class="label">DNP: </span><span style="font-size:12px">${ex.dnp} mm</span></span>`:""}
+    ${ex.pioOD?`<span><span class="label">PIO OD: </span><span style="font-size:12px;color:${parseInt(ex.pioOD)>20?"#D4726A":"#2A7C6F"}">${ex.pioOD} mmHg</span></span>`:""}
+    ${ex.pioOI?`<span><span class="label">PIO OI: </span><span style="font-size:12px;color:${parseInt(ex.pioOI)>20?"#D4726A":"#2A7C6F"}">${ex.pioOI} mmHg</span></span>`:""}
+  </div>
+
+  ${ex.diagnostico?`<div class="section">Diagnóstico</div><div class="diag">${ex.diagnostico}</div>`:""}
+  ${ex.recomendaciones?`<div class="section">Recomendaciones</div><div class="rec">${ex.recomendaciones}</div>`:""}
+  ${ex.proximaRevision?`<div style="margin-top:8px;font-size:11px;color:#2A7C6F"><strong>Próxima revisión:</strong> ${fmtD(ex.proximaRevision)}</div>`:""}
+
+  <div class="footer">
+    <div class="fecha">Generado: ${new Date().toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})}</div>
+    <div class="firma"><div class="firma-line">${ex.optometrista||"Lic. Opt. Diane"}<br/>Optometrista</div></div>
+  </div>
+</div>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`;
+  const w = window.open("","_blank","width=600,height=500");
+  w.document.write(html);
+  w.document.close();
+}
+
+// ── Búsqueda global ──────────────────────────────────────────────────────────
+function GlobalSearch({q,pacs,citas,ventas,exps,onSelect}) {
+  const ql = q.toLowerCase();
+  const rPacs  = pacs.filter(p=>(p.nombre||"").toLowerCase().includes(ql)||(p.telefono||"").includes(ql)).slice(0,4);
+  const rCitas = citas.filter(c=>(c.paciente||"").toLowerCase().includes(ql)||(c.tipo||"").toLowerCase().includes(ql)).slice(0,3);
+  const rVentas= ventas.filter(v=>(v.paciente||"").toLowerCase().includes(ql)||(v.concepto||"").toLowerCase().includes(ql)).slice(0,3);
+  const rExps  = exps.filter(e=>(e.diagnostico||"").toLowerCase().includes(ql)||(e.motivo||"").toLowerCase().includes(ql)).slice(0,2);
+  const total  = rPacs.length+rCitas.length+rVentas.length+rExps.length;
+  if(total===0) return <div className="gsearch-box"><div className="gsearch-empty">Sin resultados para "{q}"</div></div>;
+  return <div className="gsearch-box">
+    {rPacs.length>0&&<><div className="gsearch-section">Pacientes</div>{rPacs.map((p,i)=><div key={p.id} className="gsearch-row" onMouseDown={()=>onSelect("pac",p)}><Av name={p.nombre} i={i}/><div><div className="gsearch-name">{p.nombre}</div><div className="gsearch-sub">{p.telefono} · <Tag type={p.tipo}/></div></div></div>)}</>}
+    {rCitas.length>0&&<><div className="gsearch-section">Citas</div>{rCitas.map(c=><div key={c.id} className="gsearch-row" onMouseDown={()=>onSelect("cita",c)}><div className="gsearch-icon">📅</div><div><div className="gsearch-name">{c.paciente}</div><div className="gsearch-sub">{fmtD(c.fecha)} · {c.tipo} · <Tag type={c.estado}/></div></div></div>)}</>}
+    {rVentas.length>0&&<><div className="gsearch-section">Ventas</div>{rVentas.map(v=><div key={v.id} className="gsearch-row" onMouseDown={()=>onSelect("venta",v)}><div className="gsearch-icon">💰</div><div><div className="gsearch-name">{v.paciente}</div><div className="gsearch-sub">{fmtD(v.fecha)} · ${(v.monto||0).toLocaleString()}</div></div></div>)}</>}
+    {rExps.length>0&&<><div className="gsearch-section">Expedientes</div>{rExps.map(e=><div key={e.id} className="gsearch-row" onMouseDown={()=>onSelect("exp",e)}><div className="gsearch-icon">🔬</div><div><div className="gsearch-name">{(e.diagnostico||"").slice(0,50)}</div><div className="gsearch-sub">{fmtD(e.fecha)} · {e.motivo}</div></div></div>)}</>}
+  </div>;
+}
+
 // ── FichaCliente ─────────────────────────────────────────────────────────────
-function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,onEditExp,onDeleteExp,onUpload}) {
+function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,onEditExp,onDeleteExp,onUpload,onEditPaciente}) {
   const [tab,setTab] = useState("resumen");
   const [expO,setExpO] = useState(null);
   const pc=citas.filter(c=>c.pacienteId===p.id), ps=segs.filter(s=>s.pacienteId===p.id), pv=ventas.filter(v=>v.pacienteId===p.id);
@@ -254,9 +343,10 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
           <div className="do-av do-av-teal" style={{width:52,height:52,fontSize:18}}>{ini(p.nombre)}</div>
           <div><div className="ficha-name">{p.nombre}</div><div style={{display:"flex",gap:8,marginTop:6,alignItems:"center"}}><Tag type={p.tipo}/><span style={{fontSize:12,color:"#C4B5A0"}}>ID: {p.id}</span></div></div>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+        <div style={{display:"flex",gap:8,alignItems:"flex-start",flexWrap:"wrap"}}>
           <WA phone={p.telefono} msg={"Hola "+(p.nombre||"").split(" ")[0]+", le escribimos de Diane Opticas."}/>
           <a href={"tel:+52"+p.telefono.replace(/\D/g,"")} className="do-btn do-btn-out" style={{fontSize:12}}>{IC.ph} Llamar</a>
+          {can(role,"pacientes")&&<button className="do-btn do-btn-out" style={{fontSize:12}} onClick={()=>onEditPaciente(p)}>{IC.pen} Editar</button>}
           <button className="do-close" onClick={onClose}>{IC.x}</button>
         </div>
       </div>
@@ -293,7 +383,7 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
             <div style={{fontSize:12,color:"#8B7355"}}>{pe.length} consultas</div>
             <button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>onAddExp(p.id)}>{IC.plus} Nueva Consulta</button>
           </div>
-          {pe.length>0?pe.map(ex=><ExpedienteCard key={ex.id} ex={ex} archivos={archivos} expanded={expO===ex.id} onToggle={()=>setExpO(expO===ex.id?null:ex.id)} onEdit={onEditExp} onDelete={onDeleteExp} role={role}/>):<div className="do-empty"><h4>Sin expedientes</h4><p>Registra la primera consulta</p></div>}
+          {pe.length>0?pe.map(ex=><ExpedienteCard key={ex.id} ex={ex} archivos={archivos} expanded={expO===ex.id} onToggle={()=>setExpO(expO===ex.id?null:ex.id)} onEdit={onEditExp} onDelete={onDeleteExp} role={role} paciente={p}/>):<div className="do-empty"><h4>Sin expedientes</h4><p>Registra la primera consulta</p></div>}
         </div>}
         {tab==="archivos"&&<div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
@@ -447,6 +537,7 @@ export default function DianeOpticasCRM() {
   const [search,setSearch]= useState("");
   const [selPat,setSelPat]= useState(null);
   const [mobNav,setMobNav]= useState(false);
+  const [showGSearch,setShowGSearch] = useState(false);
 
   // modals
   const [showPacM,setShowPacM]   = useState(null); // null=closed, {}=new, {id...}=edit
@@ -530,6 +621,27 @@ export default function DianeOpticasCRM() {
     const row = isEdit ? f : {...f, id: uid("C")};
     if (isEdit) { setCitas(citas.map(c=>c.id===row.id?row:c)); toast("Cita actualizada"); updateInSheet("Citas",row.id,row); }
     else { setCitas([row,...citas]); toast("Cita agendada"); writeToSheet("Citas",row); }
+    // Auto-actualizar paciente si cita se marca Completada
+    if(row.estado==="Completada"&&row.pacienteId) {
+      const pac = pacs.find(p=>p.id===row.pacienteId);
+      if(pac) {
+        const updPac = {...pac, ultimaVisita: row.fecha};
+        setPacs(pacs.map(p=>p.id===pac.id?updPac:p));
+        if(selPat&&selPat.id===pac.id) setSelPat(updPac);
+        updateInSheet("Pacientes", pac.id, updPac);
+        toast("Última visita actualizada para "+pac.nombre);
+      }
+    }
+    // Auto-poner proximaCita en paciente si es cita futura
+    if(row.estado!=="Cancelada"&&row.pacienteId&&row.fecha>=today()) {
+      const pac = pacs.find(p=>p.id===row.pacienteId);
+      if(pac&&(!pac.proximaCita||row.fecha<pac.proximaCita)) {
+        const updPac = {...pac, proximaCita: row.fecha};
+        setPacs(pacs.map(p=>p.id===pac.id?updPac:p));
+        if(selPat&&selPat.id===pac.id) setSelPat(updPac);
+        updateInSheet("Pacientes", pac.id, updPac);
+      }
+    }
   };
   const deleteCita = (id) => {
     setConfirm({msg:"¿Eliminar esta cita?", onYes:()=>{
@@ -648,7 +760,15 @@ export default function DianeOpticasCRM() {
             <span className="role-badge" style={{background:ROLES[role].color}}>{ROLES[role].label}</span>
           </div>
           <div className="do-top-act">
-            <div className="do-search">{IC.srch}<input placeholder="Buscar paciente..." value={search} onChange={ev=>setSearch(ev.target.value)} onFocus={()=>{if(view!=="pacientes")setView("pacientes")}}/></div>
+            <div className="do-search" style={{position:"relative"}}>
+              {IC.srch}
+              <input placeholder="Buscar en el CRM..." value={search}
+                onChange={ev=>{setSearch(ev.target.value);if(ev.target.value.length>1)setShowGSearch(true);else setShowGSearch(false);}}
+                onFocus={()=>{if(search.length>1)setShowGSearch(true);}}
+                onBlur={()=>setTimeout(()=>setShowGSearch(false),180)}
+              />
+              {showGSearch&&search.length>1&&<GlobalSearch q={search} pacs={pacs} citas={citas} ventas={ventas} exps={exps} onSelect={(type,item)=>{setShowGSearch(false);setSearch("");if(type==="pac"){setSelPat(item);}else if(type==="cita"){const p=pacs.find(x=>x.id===item.pacienteId);p&&setSelPat(p);setView("citas");}else if(type==="venta"){const p=pacs.find(x=>x.id===item.pacienteId);p&&setSelPat(p);setView("ventas");}else if(type==="exp"){const p=pacs.find(x=>x.id===item.pacienteId);p&&setSelPat(p);}}}/>}
+            </div>
             {can(role,"citas")&&<button className="do-btn do-btn-out" onClick={()=>setShowCitaM({})}>{IC.cal} Cita</button>}
             {can(role,"expediente")&&<button className="do-btn do-btn-out" onClick={()=>setShowExpM({pacienteId:""})}>{IC.eye} Expediente</button>}
             {can(role,"ventas")&&<button className="do-btn do-btn-out" style={{borderColor:"#C49A3C",color:"#C49A3C"}} onClick={()=>setShowVentaM({})}>{IC.bag} Venta</button>}
@@ -871,7 +991,8 @@ export default function DianeOpticasCRM() {
       onAddExp={pid=>setShowExpM({pacienteId:pid})}
       onEditExp={ex=>setShowExpM({initial:ex,pacienteId:ex.pacienteId})}
       onDeleteExp={deleteExp}
-      onUpload={pid=>setShowUpload(pid)}/>}
+      onUpload={pid=>setShowUpload(pid)}
+      onEditPaciente={p=>{setSelPat(null);setTimeout(()=>setShowPacM(p),100);}}/>}
 
     {/* ── Modals ── */}
     {showPacM!==null&&<PacienteModal initial={showPacM.id?showPacM:null} pacs={pacs} onClose={()=>setShowPacM(null)} onSave={savePaciente}/>}
@@ -1033,6 +1154,14 @@ body,#root{font-family:'DM Sans',sans-serif;background:#FAF7F2;color:#4A3F35;min
 /* ── Ficha / slide panel ── */
 .do-overlay{position:fixed;inset:0;background:rgba(45,37,32,.35);z-index:200;animation:doFadeIn .2s ease}
 .do-ficha{position:fixed;top:0;right:0;bottom:0;width:680px;background:#fff;z-index:201;overflow-y:auto;box-shadow:-8px 0 32px rgba(45,37,32,.15);animation:doSlide .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.gsearch-box{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid #E8DFD1;border-radius:10px;box-shadow:0 8px 24px rgba(74,63,53,.12);z-index:200;max-height:400px;overflow-y:auto}
+.gsearch-section{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#8B7355;font-weight:600;padding:10px 14px 4px}
+.gsearch-row{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background .15s}
+.gsearch-row:hover{background:#FAF7F2}
+.gsearch-name{font-size:13px;font-weight:500;color:#2D2520}
+.gsearch-sub{font-size:11px;color:#C4B5A0;margin-top:2px;display:flex;gap:6px;align-items:center}
+.gsearch-icon{font-size:20px;width:34px;text-align:center;flex-shrink:0}
+.gsearch-empty{padding:16px 14px;font-size:13px;color:#C4B5A0;text-align:center}
 .mob-back-bar{display:none;padding:10px 16px;border-bottom:1px solid #F3EDE4;flex-shrink:0;background:#FDFBF8}
 .mob-back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:#2A7C6F;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;padding:6px 8px;border-radius:8px;min-height:40px}
 .mob-back-btn:active{background:#E8F5F2}
