@@ -650,12 +650,10 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
 function ModoConsulta({onClose, onSave, pacs, initialPacienteId, onNuevoPac}) {
   const blank = {esf:"",cil:"",eje:"",av:""};
   const [paso, setPaso] = useState(1);
-  const [expId] = useState(uid("EX"));
   const [nuevoPacMode, setNuevoPacMode] = useState(false);
   const [npNombre, setNpNombre] = useState("");
   const [npTel, setNpTel] = useState("");
   const [f, sf] = useState({
-    id: expId,
     pacienteId: initialPacienteId||"",
     fecha: today(),
     optometrista: "Lic. Opt. Diane",
@@ -682,7 +680,8 @@ function ModoConsulta({onClose, onSave, pacs, initialPacienteId, onNuevoPac}) {
   };
 
   const guardarFinal = (abrirReceta=false) => {
-    onSave(f, abrirReceta);
+    if (!f.pacienteId) { alert("Selecciona un paciente"); return; }
+    onSave({...f}, abrirReceta);
     onClose();
   };
 
@@ -1513,16 +1512,27 @@ export default function DianeOpticasCRM() {
 
   const saveExp = async (f) => {
     const paciente = pacs.find(x=>x.id===f.pacienteId)||{};
-    const isEdit = !!f.id;
-    const row = isEdit ? {...f} : {...f, id: uid("EX"), paciente: paciente.nombre||""};
+    const isEdit   = !!(f.id && exps.find(e=>e.id===f.id)); // edición solo si el ID ya existe en la lista
+    // Preservar el id si ya viene (ej: desde ModoConsulta), solo generar si no hay
+    const row = {
+      ...f,
+      id: f.id || uid("EX"),
+      paciente: paciente.nombre || f.paciente || "",
+    };
     if (isEdit) {
       setExps(exps.map(e=>e.id===row.id?row:e));
       toast("Expediente actualizado");
       updateInSheet("Expedientes", row.id, flattenExp(row));
     } else {
       setExps([row,...exps]);
-      toast("Expediente guardado");
+      toast("Expediente guardado ✓");
       writeToSheet("Expedientes", flattenExp(row));
+      // Actualizar ultimaVisita del paciente
+      const updPac = {...paciente, ultimaVisita: row.fecha||today()};
+      if (paciente.id) {
+        setPacs(prev=>prev.map(p=>p.id===paciente.id?updPac:p));
+        updateInSheet("Pacientes", paciente.id, updPac);
+      }
     }
   };
   const deleteExp = (id) => {
