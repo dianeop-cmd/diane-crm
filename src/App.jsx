@@ -945,17 +945,28 @@ function ModoConsulta({onClose, onSave, pacs, initialPacienteId, onNuevoPac}) {
             </div>
 
             {/* Botones finales */}
-            <div style={{display:"flex",gap:8,marginTop:16}}>
+            <div style={{display:"flex",gap:8,marginTop:16,flexWrap:"wrap"}}>
               <button onClick={()=>guardarFinal(false)} style={{
-                flex:1,padding:"13px",borderRadius:12,
+                flex:"1 1 100px",padding:"13px",borderRadius:12,
                 background:"#F3EDE4",color:"#4A3F35",
                 border:"none",fontSize:14,fontWeight:600,cursor:"pointer"
               }}>Guardar</button>
+              <button onClick={()=>{
+                // Vista previa de receta sin cerrar
+                generarReceta(f, pac);
+              }} style={{
+                flex:"1 1 100px",padding:"13px",borderRadius:12,
+                background:"#E8F5F2",color:"#0F6E56",
+                border:"1.5px solid #2A7C6F",fontSize:13,fontWeight:600,cursor:"pointer"
+              }}>📋 Ver receta</button>
               <button onClick={()=>guardarFinal(true)} style={{
-                flex:2,padding:"13px",borderRadius:12,
+                flex:"2 1 160px",padding:"13px",borderRadius:12,
                 background:amber,color:"#fff",
                 border:"none",fontSize:14,fontWeight:700,cursor:"pointer"
               }}>Guardar y generar receta →</button>
+            </div>
+            <div style={{marginTop:8,padding:"8px 12px",background:"#FAF7F2",borderRadius:8,fontSize:11,color:"#8B7355",textAlign:"center"}}>
+              💡 "Ver receta" abre una vista previa sin guardar · "Guardar y generar receta" guarda el expediente y abre el PDF
             </div>
           </div>}
         </div>
@@ -1485,13 +1496,17 @@ export default function DianeOpticasCRM() {
     avscOI: ex.avscOI||"", phOI: ex.phOI||"", avccOI: ex.avccOI||"",
     archivosIds:(ex.archivosIds||[]).join(","),
   });
-  const saveModoConsulta = async (f, abrirReceta) => {
-    await saveExp(f);
+  const saveModoConsulta = async (expData, abrirReceta) => {
+    await saveExp(expData);
     if (abrirReceta) {
-      // Pequeño delay para que el expediente se guarde antes de abrir receta
+      // Abrir ficha del paciente y generar receta directamente
       setTimeout(() => {
-        const pac = pacs.find(p=>p.id===f.pacienteId);
-        if (pac) setSelPat(pac);
+        const pac = pacs.find(p=>p.id===expData.pacienteId);
+        if (pac) {
+          setSelPat(pac);
+          // Generar receta con los datos del expediente recién creado
+          setTimeout(() => generarReceta(expData, pac), 300);
+        }
       }, 400);
     }
   };
