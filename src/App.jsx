@@ -643,6 +643,292 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
   </>;
 }
 
+
+// ══════════════════════════════════════════════════════════════
+//  MODO CONSULTA — Flujo de 2 pasos optimizado para optometrista
+// ══════════════════════════════════════════════════════════════
+function ModoConsulta({onClose, onSave, pacs, initialPacienteId}) {
+  const blank = {esf:"",cil:"",eje:"",av:""};
+  const [paso, setPaso] = useState(1);
+  const [expId] = useState(uid("EX"));
+  const [f, sf] = useState({
+    id: expId,
+    pacienteId: initialPacienteId||"",
+    fecha: today(),
+    optometrista: "Lic. Opt. Diane",
+    motivo:"", hcOcular:"", hcGeneral:"",
+    rxOD:{...blank}, rxOI:{...blank},
+    addOD:"", addOI:"", dnp:"", pioOD:"", pioOI:"",
+    avscOD:"", phOD:"", avccOD:"",
+    avscOI:"", phOI:"", avccOI:"",
+    biomicroscopia:"", fondoOjo:"",
+    diagnostico:"", recomendaciones:"",
+    proximaRevision:"", tipoLente:"", obsReceta:"",
+    archivosIds:[]
+  });
+  const upRx = (eye,field,val) => sf({...f,[eye]:{...f[eye],[field]:val}});
+  const pac = pacs.find(p=>p.id===f.pacienteId);
+
+  // Navegación con Tab/Enter en campos Rx
+  const rxNext = (e) => { if(e.key==="Enter"||e.key==="Tab"){e.preventDefault();const inputs=document.querySelectorAll(".mc-rx-input");const idx=Array.from(inputs).indexOf(e.target);if(idx<inputs.length-1)inputs[idx+1].focus();} };
+
+  const guardarYContinuar = () => {
+    if(!f.pacienteId||!f.motivo){return;}
+    setPaso(2);
+    setTimeout(()=>{const first=document.querySelector(".mc-rx-input");if(first)first.focus();},200);
+  };
+
+  const guardarFinal = (abrirReceta=false) => {
+    onSave(f, abrirReceta);
+    onClose();
+  };
+
+  const teal = "#2A7C6F";
+  const amber = "#C49A3C";
+
+  const secStyle = (color) => ({
+    fontSize:10,fontWeight:700,color,textTransform:"uppercase",
+    letterSpacing:"0.08em",marginBottom:8,marginTop:16,
+    display:"flex",alignItems:"center",gap:6,
+  });
+  const barStyle = (color) => ({
+    height:3,background:color,borderRadius:"0 0 0 0",
+    width:"100%",marginBottom:0,
+  });
+  const stepBadge = (n, active, color) => ({
+    width:26,height:26,borderRadius:"50%",
+    background: active ? color : "rgba(0,0,0,0.06)",
+    color: active ? "#fff" : "#8B7355",
+    display:"flex",alignItems:"center",justifyContent:"center",
+    fontSize:12,fontWeight:700,flexShrink:0,
+  });
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
+      <div style={{background:"#fff",borderRadius:"20px 20px 0 0",maxHeight:"92vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+
+        {/* Barra de color superior según paso */}
+        <div style={barStyle(paso===1 ? teal : amber)}/>
+
+        {/* Header */}
+        <div style={{padding:"14px 16px 10px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid #F3EDE4"}}>
+          <div style={stepBadge(1, paso===1, teal)}>1</div>
+          <div style={{fontSize:13,color:paso===1?"#2D2520":"#C4B5A0",fontWeight:paso===1?600:400}}>Datos</div>
+          <div style={{flex:1,height:2,background:"#F3EDE4",borderRadius:2,position:"relative"}}>
+            <div style={{position:"absolute",left:0,top:0,height:"100%",background:paso===2?amber:"#F3EDE4",borderRadius:2,width:paso===2?"100%":"0%",transition:"width .4s ease"}}/>
+          </div>
+          <div style={stepBadge(2, paso===2, amber)}>2</div>
+          <div style={{fontSize:13,color:paso===2?"#2D2520":"#C4B5A0",fontWeight:paso===2?600:400}}>Resultados</div>
+          <button onClick={onClose} style={{marginLeft:"auto",background:"none",border:"none",fontSize:22,color:"#C4B5A0",cursor:"pointer",lineHeight:1,padding:"0 4px"}}>×</button>
+        </div>
+
+        {/* Nombre paciente si ya está seleccionado */}
+        {pac&&<div style={{padding:"8px 16px",background:"#E8F5F2",borderBottom:"1px solid #c5e8de",display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:28,height:28,borderRadius:"50%",background:teal,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>{pac.nombre.charAt(0)}</div>
+          <div style={{fontSize:13,fontWeight:600,color:"#1a5248"}}>{pac.nombre}</div>
+          <div style={{fontSize:11,color:"#2A7C6F",marginLeft:"auto"}}>{pac.telefono}</div>
+        </div>}
+
+        {/* Contenido scrollable */}
+        <div style={{overflowY:"auto",flex:1,padding:"0 16px 16px"}}>
+
+          {/* ── PASO 1: Datos iniciales ── */}
+          {paso===1&&<div>
+            {!initialPacienteId&&<div className="do-fg" style={{marginTop:14}}>
+              <label className="do-fl" style={{color:teal,fontWeight:700}}>Paciente *</label>
+              <select className="do-fi" style={{fontSize:16}} value={f.pacienteId} onChange={ev=>sf({...f,pacienteId:ev.target.value})}>
+                <option value="">Seleccionar paciente...</option>
+                {pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+            </div>}
+
+            <div className="do-fr" style={{marginTop:14,gap:8}}>
+              <div className="do-fg">
+                <label className="do-fl">Fecha</label>
+                <input className="do-fi" type="date" value={f.fecha} onChange={ev=>sf({...f,fecha:ev.target.value})}/>
+              </div>
+              <div className="do-fg">
+                <label className="do-fl">Optometrista</label>
+                <input className="do-fi" value={f.optometrista} onChange={ev=>sf({...f,optometrista:ev.target.value})}/>
+              </div>
+            </div>
+
+            <div className="do-fg" style={{marginTop:10}}>
+              <label className="do-fl" style={{color:teal,fontWeight:700}}>Motivo de consulta *</label>
+              <input className="do-fi" style={{fontSize:16}} value={f.motivo} onChange={ev=>sf({...f,motivo:ev.target.value})} placeholder="Revisión anual, dolor de cabeza, baja visión..."/>
+            </div>
+
+            <div style={secStyle("#8B7355")}>
+              <span style={{width:3,height:14,background:"#8B7355",borderRadius:2,display:"inline-block"}}/>
+              Historia Clínica
+            </div>
+            <div className="do-fg">
+              <label className="do-fl">HC Ocular</label>
+              <textarea className="do-fi do-ta" style={{fontSize:15,minHeight:70}} value={f.hcOcular||""} onChange={ev=>sf({...f,hcOcular:ev.target.value})} placeholder="Cirugías previas, uso de gotas, lentes anteriores..."/>
+            </div>
+            <div className="do-fg" style={{marginTop:6}}>
+              <label className="do-fl">HC General</label>
+              <textarea className="do-fi do-ta" style={{fontSize:15,minHeight:60}} value={f.hcGeneral||""} onChange={ev=>sf({...f,hcGeneral:ev.target.value})} placeholder="Enfermedades sistémicas, alergias, medicamentos..."/>
+            </div>
+
+            <button onClick={guardarYContinuar} style={{
+              width:"100%",marginTop:16,padding:"14px",borderRadius:12,
+              background:f.pacienteId&&f.motivo?teal:"#C4B5A0",
+              color:"#fff",border:"none",fontSize:15,fontWeight:700,
+              cursor:f.pacienteId&&f.motivo?"pointer":"not-allowed",
+              letterSpacing:"0.02em"
+            }}>
+              Guardar y capturar resultados →
+            </button>
+          </div>}
+
+          {/* ── PASO 2: Resultados del equipo ── */}
+          {paso===2&&<div>
+
+            {/* Agudeza Visual */}
+            <div style={secStyle(amber)}>
+              <span style={{width:3,height:14,background:amber,borderRadius:2,display:"inline-block"}}/>
+              Agudeza Visual
+            </div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                <thead>
+                  <tr>
+                    {["","AVSC","PH","AVCC"].map(h=><th key={h} style={{background:"#FAF7F2",padding:"7px 6px",fontWeight:700,color:"#8B7355",fontSize:10,textTransform:"uppercase",letterSpacing:1,textAlign:"center",border:"1px solid #E8DFD1"}}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[["OD","avscOD","phOD","avccOD"],["OI","avscOI","phOI","avccOI"]].map(([eye,...fields])=>(
+                    <tr key={eye}>
+                      <td style={{background:"#E8F5F2",padding:"6px 10px",fontWeight:700,color:teal,textAlign:"center",border:"1px solid #E8DFD1",fontSize:13}}>{eye}</td>
+                      {fields.map(fld=>(
+                        <td key={fld} style={{border:"1px solid #E8DFD1",padding:3}}>
+                          <input className="mc-rx-input do-fi" onKeyDown={rxNext} style={{textAlign:"center",padding:"8px 4px",fontSize:14,fontWeight:500}} placeholder="20/" value={f[fld]||""} onChange={ev=>sf({...f,[fld]:ev.target.value})} inputMode="text"/>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Refracción */}
+            <div style={secStyle(amber)}>
+              <span style={{width:3,height:14,background:amber,borderRadius:2,display:"inline-block"}}/>
+              Refracción
+            </div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                <thead>
+                  <tr>
+                    {["","Esf","Cil","Eje","Add"].map(h=><th key={h} style={{background:"#FAF7F2",padding:"7px 6px",fontWeight:700,color:"#8B7355",fontSize:10,textTransform:"uppercase",letterSpacing:1,textAlign:"center",border:"1px solid #E8DFD1"}}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[["OD","rxOD","addOD"],["OI","rxOI","addOI"]].map(([eye,rxKey,addKey])=>(
+                    <tr key={eye}>
+                      <td style={{background:"#E8F5F2",padding:"6px 10px",fontWeight:700,color:teal,textAlign:"center",border:"1px solid #E8DFD1",fontSize:13}}>{eye}</td>
+                      {["esf","cil","eje"].map(field=>(
+                        <td key={field} style={{border:"1px solid #E8DFD1",padding:3}}>
+                          <input className="mc-rx-input do-fi" onKeyDown={rxNext} style={{textAlign:"center",padding:"8px 4px",fontSize:14,fontWeight:500}} placeholder={field==="eje"?"0°":"+0.00"} value={f[rxKey][field]||""} onChange={ev=>upRx(rxKey,field,ev.target.value)} inputMode={field==="eje"?"numeric":"decimal"}/>
+                        </td>
+                      ))}
+                      <td style={{border:"1px solid #E8DFD1",padding:3}}>
+                        <input className="mc-rx-input do-fi" onKeyDown={rxNext} style={{textAlign:"center",padding:"8px 4px",fontSize:14,fontWeight:500}} placeholder="+0.00" value={f[addKey]||""} onChange={ev=>sf({...f,[addKey]:ev.target.value})} inputMode="decimal"/>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* DNP y PIO */}
+            <div style={{display:"flex",gap:8,marginTop:4}}>
+              <div className="do-fg" style={{flex:1}}>
+                <label className="do-fl">DNP</label>
+                <input className="mc-rx-input do-fi" onKeyDown={rxNext} style={{textAlign:"center",fontSize:15}} value={f.dnp} onChange={ev=>sf({...f,dnp:ev.target.value})} placeholder="32/31" inputMode="decimal"/>
+              </div>
+              <div className="do-fg" style={{flex:1}}>
+                <label className="do-fl">PIO OD</label>
+                <input className="mc-rx-input do-fi" onKeyDown={rxNext} style={{textAlign:"center",fontSize:15,color:parseFloat(f.pioOD)>20?"#D4726A":"inherit"}} value={f.pioOD} onChange={ev=>sf({...f,pioOD:ev.target.value})} placeholder="mmHg" inputMode="decimal"/>
+              </div>
+              <div className="do-fg" style={{flex:1}}>
+                <label className="do-fl">PIO OI</label>
+                <input className="mc-rx-input do-fi" onKeyDown={rxNext} style={{textAlign:"center",fontSize:15,color:parseFloat(f.pioOI)>20?"#D4726A":"inherit"}} value={f.pioOI} onChange={ev=>sf({...f,pioOI:ev.target.value})} placeholder="mmHg" inputMode="decimal"/>
+              </div>
+            </div>
+
+            {/* Hallazgos */}
+            <div style={secStyle("#8B7355")}>
+              <span style={{width:3,height:14,background:"#8B7355",borderRadius:2,display:"inline-block"}}/>
+              Hallazgos
+            </div>
+            <div className="do-fg">
+              <label className="do-fl">Biomicroscopía</label>
+              <textarea className="do-fi do-ta" style={{fontSize:14,minHeight:50}} value={f.biomicroscopia} onChange={ev=>sf({...f,biomicroscopia:ev.target.value})} placeholder="Cámara anterior AO: córnea transparente..."/>
+            </div>
+            <div className="do-fg" style={{marginTop:6}}>
+              <label className="do-fl">Fondo de ojo</label>
+              <textarea className="do-fi do-ta" style={{fontSize:14,minHeight:50}} value={f.fondoOjo} onChange={ev=>sf({...f,fondoOjo:ev.target.value})} placeholder="Retina aplicada, sin datos patológicos..."/>
+            </div>
+
+            {/* Dx / Tx */}
+            <div style={secStyle(teal)}>
+              <span style={{width:3,height:14,background:teal,borderRadius:2,display:"inline-block"}}/>
+              Dx / Tx
+            </div>
+            <div className="do-fg">
+              <label className="do-fl" style={{color:teal,fontWeight:700}}>Dx: Diagnóstico</label>
+              <textarea className="do-fi do-ta" style={{fontSize:14,minHeight:50}} value={f.diagnostico} onChange={ev=>sf({...f,diagnostico:ev.target.value})}/>
+            </div>
+            <div className="do-fg" style={{marginTop:6}}>
+              <label className="do-fl">Tx: Tratamiento / Plan</label>
+              <textarea className="do-fi do-ta" style={{fontSize:14,minHeight:50}} value={f.recomendaciones} onChange={ev=>sf({...f,recomendaciones:ev.target.value})}/>
+            </div>
+
+            {/* Receta */}
+            <div style={secStyle(teal)}>
+              <span style={{width:3,height:14,background:teal,borderRadius:2,display:"inline-block"}}/>
+              Receta
+            </div>
+            <div className="do-fg">
+              <label className="do-fl">Tipo de lente</label>
+              <select className="do-fi" style={{fontSize:15}} value={f.tipoLente||""} onChange={ev=>sf({...f,tipoLente:ev.target.value})}>
+                <option value="">— Sin especificar —</option>
+                <option>Monofocal</option><option>Bifocal</option><option>Progresivo</option>
+                <option>Lentes de contacto</option><option>Lentes de contacto multifocal</option>
+                <option>Solo armazón (sin graduación)</option><option>No requiere corrección</option>
+              </select>
+            </div>
+            <div className="do-fg" style={{marginTop:6}}>
+              <label className="do-fl">Observaciones para el paciente</label>
+              <textarea className="do-fi do-ta" style={{fontSize:14,minHeight:50}} value={f.obsReceta||""} onChange={ev=>sf({...f,obsReceta:ev.target.value})} placeholder="Use sus lentes en todo momento..."/>
+            </div>
+            <div className="do-fg" style={{marginTop:6}}>
+              <label className="do-fl">Próxima revisión</label>
+              <input className="do-fi" type="date" value={f.proximaRevision} onChange={ev=>sf({...f,proximaRevision:ev.target.value})}/>
+            </div>
+
+            {/* Botones finales */}
+            <div style={{display:"flex",gap:8,marginTop:16}}>
+              <button onClick={()=>guardarFinal(false)} style={{
+                flex:1,padding:"13px",borderRadius:12,
+                background:"#F3EDE4",color:"#4A3F35",
+                border:"none",fontSize:14,fontWeight:600,cursor:"pointer"
+              }}>Guardar</button>
+              <button onClick={()=>guardarFinal(true)} style={{
+                flex:2,padding:"13px",borderRadius:12,
+                background:amber,color:"#fff",
+                border:"none",fontSize:14,fontWeight:700,cursor:"pointer"
+              }}>Guardar y generar receta →</button>
+            </div>
+          </div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ExpModal (nuevo y editar) ────────────────────────────────────────────────
 function ExpModal({onClose,onSave,pacienteId,pacs,initial}) {
   const blank = {esf:"",cil:"",eje:"",av:""};
@@ -1019,6 +1305,7 @@ export default function DianeOpticasCRM() {
   const [showPacM,setShowPacM]   = useState(null); // null=closed, {}=new, {id...}=edit
   const [showCitaM,setShowCitaM] = useState(null);
   const [showExpM,setShowExpM]   = useState(null); // {pacienteId?, initial?}
+  const [showModoConsulta,setShowModoConsulta] = useState(null); // null | {pacienteId?}
   const [showVentaM,setShowVentaM]= useState(null);
   const [showSegM,setShowSegM]   = useState(null);
   const [showUpload,setShowUpload]= useState(null);
@@ -1163,6 +1450,17 @@ export default function DianeOpticasCRM() {
     avscOI: ex.avscOI||"", phOI: ex.phOI||"", avccOI: ex.avccOI||"",
     archivosIds:(ex.archivosIds||[]).join(","),
   });
+  const saveModoConsulta = async (f, abrirReceta) => {
+    await saveExp(f);
+    if (abrirReceta) {
+      // Pequeño delay para que el expediente se guarde antes de abrir receta
+      setTimeout(() => {
+        const pac = pacs.find(p=>p.id===f.pacienteId);
+        if (pac) setSelPat(pac);
+      }, 400);
+    }
+  };
+
   const saveExp = async (f) => {
     const paciente = pacs.find(x=>x.id===f.pacienteId)||{};
     const isEdit = !!f.id;
@@ -1274,6 +1572,17 @@ export default function DianeOpticasCRM() {
         <div className="do-page">
           {/* ── DASHBOARD ── */}
           {view==="dashboard"&&<div>
+            <button onClick={()=>setShowModoConsulta({})} style={{
+              width:"100%",marginBottom:16,padding:"14px 20px",borderRadius:12,
+              background:"#2A7C6F",color:"#fff",border:"none",
+              fontSize:15,fontWeight:700,cursor:"pointer",
+              display:"flex",alignItems:"center",justifyContent:"center",gap:10,
+              boxShadow:"0 2px 12px rgba(42,124,111,0.25)"
+            }}>
+              <span style={{fontSize:20}}>▶</span>
+              Nueva Consulta
+              <span style={{fontSize:12,fontWeight:400,opacity:.8,marginLeft:4}}>Modo rápido</span>
+            </button>
             <div className="do-stats">
               <div className="do-stat s1" style={{cursor:"pointer"}} onClick={()=>setView("pacientes")}><div className="do-stat-label">Pacientes</div><div className="do-stat-val">{pacs.length}</div><div className="do-stat-sub">Ver todos →</div></div>
               <div className="do-stat s2" style={{cursor:"pointer"}} onClick={()=>setView("citas")}><div className="do-stat-label">Citas Semana</div><div className="do-stat-val">{citasSem.length}</div><div className="do-stat-sub">{citasHoy.length} hoy →</div></div>
@@ -1598,7 +1907,7 @@ export default function DianeOpticasCRM() {
       if(view==="pacientes")      setShowPacM({});
       else if(view==="citas")     setShowCitaM({});
       else if(view==="ventas")    setShowVentaM({});
-      else if(view==="expedientes") setShowExpM({pacienteId:""});
+      else if(view==="expedientes") setShowModoConsulta({});
       else if(view==="seguimientos") setShowSegM({});
       else if(view==="archivos")  setShowUpload("");
       else setShowCitaM({});
@@ -1617,6 +1926,7 @@ export default function DianeOpticasCRM() {
     {showPacM!==null&&<PacienteModal initial={showPacM.id?showPacM:null} pacs={pacs} onClose={()=>setShowPacM(null)} onSave={savePaciente}/>}
     {showCitaM!==null&&<CitaModal initial={showCitaM.id?showCitaM:null} pacs={pacs} onClose={()=>setShowCitaM(null)} onSave={saveCita}/>}
     {showExpM!==null&&<ExpModal pacienteId={showExpM.pacienteId} initial={showExpM.initial||null} pacs={pacs} onClose={()=>setShowExpM(null)} onSave={saveExp}/>}
+    {showModoConsulta!==null&&<ModoConsulta initialPacienteId={showModoConsulta.pacienteId||""} pacs={pacs} onClose={()=>setShowModoConsulta(null)} onSave={saveModoConsulta}/>}
     {showVentaM!==null&&<VentaModal initial={showVentaM.id?showVentaM:null} pacs={pacs} onClose={()=>setShowVentaM(null)} onSave={saveVenta}/>}
     {showSegM!==null&&<SegModal initial={showSegM.id?showSegM:null} pacs={pacs} onClose={()=>setShowSegM(null)} onSave={saveSeg}/>}
     {showUpload!==null&&<UploadModal pacienteId={typeof showUpload==="object"?showUpload.pacienteId:showUpload} expedienteIdInicial={typeof showUpload==="object"?showUpload.expedienteId:""} pacs={pacs} exps={exps} role={role} onClose={()=>setShowUpload(null)} onUploaded={a=>{setArchivos([a,...archivos]);setShowUpload(null);toast("✅ Archivo subido correctamente");}}/>}
