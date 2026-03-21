@@ -41,6 +41,9 @@ function parseExpediente(row) {
     rxOD: { esf: row.rxOD_esf||"", cil: row.rxOD_cil||"", eje: row.rxOD_eje||"", av: row.rxOD_av||"" },
     rxOI: { esf: row.rxOI_esf||"", cil: row.rxOI_cil||"", eje: row.rxOI_eje||"", av: row.rxOI_av||"" },
     archivosIds: row.archivosIds ? row.archivosIds.split(",").map(s=>s.trim()).filter(Boolean) : [],
+    // Compatibilidad con campos del Modo Consulta
+    hcOcular: row.hcOcular || row.biomicroscopia || "",
+    hcGeneral: row.hcGeneral || "",
   };
 }
 
@@ -1487,13 +1490,39 @@ export default function DianeOpticasCRM() {
 
   // Expedientes — aplanar rxOD/rxOI para Sheets
   const flattenExp = (ex) => ({
-    ...ex,
-    rxOD_esf:ex.rxOD?.esf||"", rxOD_cil:ex.rxOD?.cil||"", rxOD_eje:ex.rxOD?.eje||"", rxOD_av:ex.rxOD?.av||"",
-    rxOI_esf:ex.rxOI?.esf||"", rxOI_cil:ex.rxOI?.cil||"", rxOI_eje:ex.rxOI?.eje||"", rxOI_av:ex.rxOI?.av||"",
-    tipoLente: ex.tipoLente||"", obsReceta: ex.obsReceta||"",
-    avscOD: ex.avscOD||"", phOD: ex.phOD||"", avccOD: ex.avccOD||"",
-    avscOI: ex.avscOI||"", phOI: ex.phOI||"", avccOI: ex.avccOI||"",
-    archivosIds:(ex.archivosIds||[]).join(","),
+    id:            ex.id||"",
+    pacienteId:    ex.pacienteId||"",
+    paciente:      ex.paciente||"",
+    fecha:         ex.fecha||"",
+    optometrista:  ex.optometrista||"",
+    motivo:        ex.motivo||"",
+    rxOD_esf:      ex.rxOD?.esf||"",
+    rxOD_cil:      ex.rxOD?.cil||"",
+    rxOD_eje:      ex.rxOD?.eje||"",
+    rxOD_av:       ex.rxOD?.av||"",
+    rxOI_esf:      ex.rxOI?.esf||"",
+    rxOI_cil:      ex.rxOI?.cil||"",
+    rxOI_eje:      ex.rxOI?.eje||"",
+    rxOI_av:       ex.rxOI?.av||"",
+    addOD:         ex.addOD||"",
+    addOI:         ex.addOI||"",
+    dnp:           ex.dnp||"",
+    pioOD:         ex.pioOD||"",
+    pioOI:         ex.pioOI||"",
+    avscOD:        ex.avscOD||"",
+    phOD:          ex.phOD||"",
+    avccOD:        ex.avccOD||"",
+    avscOI:        ex.avscOI||"",
+    phOI:          ex.phOI||"",
+    avccOI:        ex.avccOI||"",
+    biomicroscopia: ex.biomicroscopia||ex.hcOcular||"",
+    fondoOjo:      ex.fondoOjo||"",
+    diagnostico:   ex.diagnostico||"",
+    recomendaciones: ex.recomendaciones||"",
+    proximaRevision: ex.proximaRevision||"",
+    tipoLente:     ex.tipoLente||"",
+    obsReceta:     ex.obsReceta||"",
+    archivosIds:   (ex.archivosIds||[]).join(","),
   });
   const saveModoConsulta = async (expData, abrirReceta) => {
     await saveExp(expData);
