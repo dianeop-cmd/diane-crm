@@ -1835,25 +1835,42 @@ export default function DianeOpticasCRM() {
 
           {/* ── EXPEDIENTES ── */}
           {view==="expedientes"&&<div className="do-tbl">
-            <div className="do-tbl-hd"><h3>Expedientes ({exps.length})</h3><button className="do-btn do-btn-pri" style={{fontSize:12}} onClick={()=>setShowExpM({pacienteId:""})}>{IC.plus} Nueva Consulta</button></div>
+            <div className="do-tbl-hd">
+              <h3 style={{whiteSpace:"nowrap"}}>Expedientes ({exps.length})</h3>
+              <button className="do-btn do-btn-pri" style={{fontSize:12,whiteSpace:"nowrap",flexShrink:0}} onClick={()=>setShowModoConsulta({})}>{IC.plus} Consulta</button>
+            </div>
             {/* Mobile cards */}
             <div className="mob-list">{exps.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map((ex,i)=>{
               const p=pacs.find(x=>x.id===ex.pacienteId);
               const isA=ex.diagnostico&&ex.diagnostico.includes("SOSPECHA");
-              return <div key={ex.id} className="mob-card" onClick={()=>p&&setSelPat(p)}>
-                <Av name={p?p.nombre:"?"} i={i}/>
-                <div className="mob-card-body">
-                  <div className="mob-card-name">{p?p.nombre:"?"}</div>
-                  <div className="mob-card-sub">{fmtD(ex.fecha)} · {ex.motivo}</div>
-                  <div className="mob-card-meta">
-                    {isA&&<span style={{fontSize:11,color:"#D4726A",fontWeight:700}}>⚠ Alerta</span>}
-                    {ex.tipoLente&&<Tag type={ex.tipoLente}/>}
-                    {ex.proximaRevision&&<span style={{fontSize:11,color:"#2A7C6F"}}>Rev: {fmtD(ex.proximaRevision)}</span>}
+              const nombrePac = p?p.nombre : (ex.paciente||"?");
+              return <div key={ex.id} className="mob-card" style={{flexWrap:"wrap",gap:8}}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:10,width:"100%"}} onClick={()=>p&&setSelPat(p)}>
+                  <Av name={nombrePac} i={i}/>
+                  <div className="mob-card-body" style={{flex:1}}>
+                    <div className="mob-card-name">{nombrePac}</div>
+                    <div className="mob-card-sub">{fmtD(ex.fecha)} · {ex.motivo||"—"}</div>
+                    <div className="mob-card-meta">
+                      {isA&&<span style={{fontSize:11,color:"#D4726A",fontWeight:700}}>⚠ Alerta</span>}
+                      {ex.tipoLente&&<Tag type={ex.tipoLente}/>}
+                      {ex.proximaRevision&&<span style={{fontSize:11,color:"#2A7C6F"}}>Rev: {fmtD(ex.proximaRevision)}</span>}
+                    </div>
                   </div>
                 </div>
-                <div className="mob-card-right">
-                  {can(role,"expediente")&&<button className="do-btn-ic" onClick={e=>{e.stopPropagation();setShowExpM({initial:ex,pacienteId:ex.pacienteId})}}>{IC.pen}</button>}
-                </div>
+                {can(role,"expediente")&&<div style={{display:"flex",gap:6,width:"100%",paddingTop:6,borderTop:"1px solid #F3EDE4"}}>
+                  <button className="do-btn-ic" style={{flex:1,justifyContent:"center",display:"flex",alignItems:"center",gap:4,fontSize:12,padding:"6px"}}
+                    onClick={e=>{e.stopPropagation();generarReceta(ex,p||{nombre:ex.paciente});}}>
+                    {IC.receta} <span style={{fontSize:11}}>Receta</span>
+                  </button>
+                  <button className="do-btn-ic" style={{flex:1,justifyContent:"center",display:"flex",alignItems:"center",gap:4,fontSize:12,padding:"6px"}}
+                    onClick={e=>{e.stopPropagation();setShowExpM({initial:ex,pacienteId:ex.pacienteId});}}>
+                    {IC.pen} <span style={{fontSize:11}}>Editar</span>
+                  </button>
+                  <button className="do-btn-ic do-btn-ic-d" style={{flex:1,justifyContent:"center",display:"flex",alignItems:"center",gap:4,fontSize:12,padding:"6px"}}
+                    onClick={e=>{e.stopPropagation();deleteExp(ex.id);}}>
+                    {IC.trash} <span style={{fontSize:11}}>Borrar</span>
+                  </button>
+                </div>}
               </div>;
             })}</div>
             {/* Desktop table */}
