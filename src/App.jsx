@@ -647,10 +647,13 @@ function FichaCliente({p,citas,segs,ventas,exps,archivos,onClose,role,onAddExp,o
 // ══════════════════════════════════════════════════════════════
 //  MODO CONSULTA — Flujo de 2 pasos optimizado para optometrista
 // ══════════════════════════════════════════════════════════════
-function ModoConsulta({onClose, onSave, pacs, initialPacienteId}) {
+function ModoConsulta({onClose, onSave, pacs, initialPacienteId, onNuevoPac}) {
   const blank = {esf:"",cil:"",eje:"",av:""};
   const [paso, setPaso] = useState(1);
   const [expId] = useState(uid("EX"));
+  const [nuevoPacMode, setNuevoPacMode] = useState(false);
+  const [npNombre, setNpNombre] = useState("");
+  const [npTel, setNpTel] = useState("");
   const [f, sf] = useState({
     id: expId,
     pacienteId: initialPacienteId||"",
@@ -734,12 +737,44 @@ function ModoConsulta({onClose, onSave, pacs, initialPacienteId}) {
 
           {/* ── PASO 1: Datos iniciales ── */}
           {paso===1&&<div>
-            {!initialPacienteId&&<div className="do-fg" style={{marginTop:14}}>
+            {!initialPacienteId&&<div style={{marginTop:14}}>
               <label className="do-fl" style={{color:teal,fontWeight:700}}>Paciente *</label>
-              <select className="do-fi" style={{fontSize:16}} value={f.pacienteId} onChange={ev=>sf({...f,pacienteId:ev.target.value})}>
-                <option value="">Seleccionar paciente...</option>
-                {pacs.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
-              </select>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <select className="do-fi" style={{fontSize:16,flex:1}} value={f.pacienteId} onChange={ev=>{sf({...f,pacienteId:ev.target.value});setNuevoPacMode(false);}}>
+                  <option value="">Seleccionar paciente...</option>
+                  {[...pacs].sort((a,b)=>(a.nombre||"").localeCompare(b.nombre||"")).map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
+                </select>
+                <button onClick={()=>setNuevoPacMode(v=>!v)} style={{
+                  flexShrink:0,padding:"8px 12px",borderRadius:8,
+                  background:nuevoPacMode?"#F3EDE4":teal,
+                  color:nuevoPacMode?"#4A3F35":"#fff",
+                  border:"none",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"
+                }}>{nuevoPacMode?"✕ Cancelar":"+ Nuevo"}</button>
+              </div>
+
+              {nuevoPacMode&&<div style={{
+                background:"#E8F5F2",borderRadius:10,padding:12,marginTop:8,
+                border:"1px solid #9FE1CB"
+              }}>
+                <div style={{fontSize:11,color:teal,fontWeight:700,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.06em"}}>Registrar paciente nuevo</div>
+                <div style={{display:"flex",gap:8,marginBottom:8}}>
+                  <input className="do-fi" style={{flex:2,fontSize:15}} placeholder="Nombre completo *" value={npNombre} onChange={ev=>setNpNombre(ev.target.value)}/>
+                  <input className="do-fi" style={{flex:1,fontSize:15}} placeholder="Teléfono *" value={npTel} onChange={ev=>setNpTel(ev.target.value)} inputMode="tel"/>
+                </div>
+                <button onClick={async()=>{
+                  if(!npNombre.trim()||!npTel.trim())return;
+                  const newId=uid("P");
+                  const newPac={id:newId,nombre:npNombre.trim(),telefono:npTel.trim(),email:"",fechaNac:"",tipo:"Nuevo",fuente:"Consulta directa",ultimaVisita:"",proximaCita:"",notas:""};
+                  onNuevoPac(newPac);
+                  sf({...f,pacienteId:newId});
+                  setNuevoPacMode(false);
+                  setNpNombre("");setNpTel("");
+                }} style={{
+                  width:"100%",padding:"10px",borderRadius:8,
+                  background:npNombre.trim()&&npTel.trim()?teal:"#C4B5A0",
+                  color:"#fff",border:"none",fontSize:13,fontWeight:700,cursor:"pointer"
+                }}>Crear y seleccionar paciente</button>
+              </div>}
             </div>}
 
             <div className="do-fr" style={{marginTop:14,gap:8}}>
@@ -1926,7 +1961,7 @@ export default function DianeOpticasCRM() {
     {showPacM!==null&&<PacienteModal initial={showPacM.id?showPacM:null} pacs={pacs} onClose={()=>setShowPacM(null)} onSave={savePaciente}/>}
     {showCitaM!==null&&<CitaModal initial={showCitaM.id?showCitaM:null} pacs={pacs} onClose={()=>setShowCitaM(null)} onSave={saveCita}/>}
     {showExpM!==null&&<ExpModal pacienteId={showExpM.pacienteId} initial={showExpM.initial||null} pacs={pacs} onClose={()=>setShowExpM(null)} onSave={saveExp}/>}
-    {showModoConsulta!==null&&<ModoConsulta initialPacienteId={showModoConsulta.pacienteId||""} pacs={pacs} onClose={()=>setShowModoConsulta(null)} onSave={saveModoConsulta}/>}
+    {showModoConsulta!==null&&<ModoConsulta initialPacienteId={showModoConsulta.pacienteId||""} pacs={pacs} onClose={()=>setShowModoConsulta(null)} onSave={saveModoConsulta} onNuevoPac={p=>{setPacs([p,...pacs]);writeToSheet("Pacientes",p);toast("Paciente registrado");}}/>}
     {showVentaM!==null&&<VentaModal initial={showVentaM.id?showVentaM:null} pacs={pacs} onClose={()=>setShowVentaM(null)} onSave={saveVenta}/>}
     {showSegM!==null&&<SegModal initial={showSegM.id?showSegM:null} pacs={pacs} onClose={()=>setShowSegM(null)} onSave={saveSeg}/>}
     {showUpload!==null&&<UploadModal pacienteId={typeof showUpload==="object"?showUpload.pacienteId:showUpload} expedienteIdInicial={typeof showUpload==="object"?showUpload.expedienteId:""} pacs={pacs} exps={exps} role={role} onClose={()=>setShowUpload(null)} onUploaded={a=>{setArchivos([a,...archivos]);setShowUpload(null);toast("✅ Archivo subido correctamente");}}/>}
